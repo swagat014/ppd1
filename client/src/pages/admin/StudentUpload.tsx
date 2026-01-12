@@ -66,8 +66,9 @@ const StudentUpload: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('userType', 'student');
 
-      const response = await axios.post('/api/admin/students/upload', formData, {
+      const response = await axios.post('/admin/users/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -94,7 +95,9 @@ const StudentUpload: React.FC = () => {
 
   const downloadTemplate = () => {
     // Create CSV content for the template
-    const csvContent = "name,father_name,phone,date_of_birth,email\n";
+    let csvContent = "name,father_name,phone,date_of_birth,email\n";
+    csvContent += "John Doe,Michael Doe,9876543210,2000-01-15,john.doe@gcekbpatna.ac.in\n";
+    csvContent += "Jane Smith,Robert Smith,9123456789,1999-05-20,jane.smith@gcekbpatna.ac.in\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -116,44 +119,64 @@ const StudentUpload: React.FC = () => {
             Upload Students via CSV
           </Typography>
           
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper sx={{ p: 3, mb: 3, backgroundColor: 'background.paper', borderRadius: 2 }}>
+            <Typography variant="h6" gutterBottom fontWeight="bold" color="primary">
               Instructions
             </Typography>
-            <Typography variant="body1" paragraph>
+            <Typography variant="body1" paragraph color="text.secondary">
               Upload a CSV file containing student information. The CSV file should have the following columns:
             </Typography>
             <List>
               <ListItem>
-                <ListItemIcon><CheckCircle /></ListItemIcon>
-                <ListItemText primary="name - Student's full name (will be split into first and last name)" />
+                <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
+                <ListItemText 
+                  primary="name - Student's full name (will be split into first and last name)" 
+                  secondary="Format: First Middle Last or First Last"
+                />
               </ListItem>
               <ListItem>
-                <ListItemIcon><CheckCircle /></ListItemIcon>
-                <ListItemText primary="father_name - Father's name" />
+                <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
+                <ListItemText 
+                  primary="father_name - Father's name" 
+                  secondary="Full name of the student's father"
+                />
               </ListItem>
               <ListItem>
-                <ListItemIcon><CheckCircle /></ListItemIcon>
-                <ListItemText primary="phone - Phone number" />
+                <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
+                <ListItemText 
+                  primary="phone - Phone number" 
+                  secondary="Valid 10-digit mobile number"
+                />
               </ListItem>
               <ListItem>
-                <ListItemIcon><CheckCircle /></ListItemIcon>
-                <ListItemText primary="date_of_birth - Date of birth in YYYY-MM-DD format" />
+                <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
+                <ListItemText 
+                  primary="date_of_birth - Date of birth in YYYY-MM-DD format" 
+                  secondary="Used as default password for login"
+                />
               </ListItem>
               <ListItem>
-                <ListItemIcon><CheckCircle /></ListItemIcon>
-                <ListItemText primary="email - Email address ending with @gcekbpatna.ac.in" />
+                <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
+                <ListItemText 
+                  primary="email - Email address ending with @gcekbpatna.ac.in" 
+                  secondary="Unique identifier for login"
+                />
               </ListItem>
             </List>
             
-            <Box mt={2}>
+            <Box mt={2} display="flex" alignItems="center" gap={1}>
               <Button 
-                variant="outlined" 
+                variant="contained" 
+                color="primary"
                 startIcon={<CloudUpload />} 
                 onClick={downloadTemplate}
+                size="large"
               >
-                Download CSV Template
+                Download Student CSV Template
               </Button>
+              <Typography variant="caption" color="text.secondary">
+                Includes sample data for reference
+              </Typography>
             </Box>
           </Paper>
 
@@ -272,7 +295,23 @@ const StudentUpload: React.FC = () => {
                         </TableCell>
                         <TableCell>Upload Successful</TableCell>
                         <TableCell>
-                          {result.createdCount} students created, {result.updatedCount} students updated
+                          <Typography variant="body1" fontWeight="bold">
+                            {result.createdCount + result.updatedCount > 0 
+                              ? `${result.createdCount + result.updatedCount} records processed successfully` 
+                              : 'No records were processed'}
+                          </Typography>
+                          {result.createdCount > 0 && (
+                            <Typography color="success.main">• {result.createdCount} student{result.createdCount > 1 ? 's' : ''} created</Typography>
+                          )}
+                          {result.updatedCount > 0 && (
+                            <Typography color="info.main">• {result.updatedCount} student{result.updatedCount > 1 ? 's' : ''} updated</Typography>
+                          )}
+                          {result.totalProcessed === 0 && (
+                            <Typography color="error.main">• No records were processed (check validation errors below)</Typography>
+                          )}
+                          {result.errors && result.errors.length > 0 && (
+                            <Typography color="warning.main">• {result.errors.length} validation error{result.errors.length > 1 ? 's' : ''}</Typography>
+                          )}
                         </TableCell>
                       </TableRow>
                     </TableBody>

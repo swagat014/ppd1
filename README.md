@@ -1,4 +1,4 @@
-# Placement Preparation Platform 🚀
+# ZestPrep 🚀
 
 A comprehensive web application designed to help students prepare for campus placements with advanced features including resume analysis, DSA practice, mock interviews, aptitude tests, and detailed analytics.
 

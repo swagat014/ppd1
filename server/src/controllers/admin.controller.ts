@@ -6,7 +6,51 @@ import csv from 'csv-parser';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
 import { AuthRequest } from '../middleware/auth.middleware';
-import * as jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+
+// import * as jwt from 'jsonwebtoken'; // Not needed for CSV upload functionality
+
+// Helper function to convert various date formats to YYYY-MM-DD
+function convertToStandardDateFormat(dateString: string): string {
+  // Trim whitespace
+  dateString = dateString.trim();
+  
+  // Handle YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Normalize separator to dash for consistent processing
+  let normalizedDate = dateString.replace(/[\/]/g, '-');
+  
+  // Handle MM-DD-YYYY format
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(normalizedDate)) {
+    const parts = normalizedDate.split('-');
+    if (parts.length === 3) {
+      const [month, day, year] = parts;
+      const paddedMonth = month.padStart(2, '0');
+      const paddedDay = day.padStart(2, '0');
+      return `${year}-${paddedMonth}-${paddedDay}`;
+    }
+  }
+  
+  // Handle DD-MM-YYYY format (European format)
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(normalizedDate)) {
+    const parts = normalizedDate.split('-');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      // Simple heuristic: if first part is > 12, assume it's DD-MM-YYYY
+      if (parseInt(day) > 12) {
+        const paddedMonth = month.padStart(2, '0');
+        const paddedDay = day.padStart(2, '0');
+        return `${year}-${paddedMonth}-${paddedDay}`;
+      }
+    }
+  }
+  
+  // If no format matched, return original
+  return dateString;
+}
 
 // Configure multer for CSV uploads
 const storage = multer.diskStorage({
@@ -74,6 +118,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
           name: `${user.profile.firstName} ${user.profile.lastName}`,
           phone: user.profile.phone,
           department: user.profile.department,
+          dateOfBirth: user.profile.dateOfBirth, // Include date of birth for all users
         },
         isActive: user.isActive,
         createdAt: user.createdAt,
@@ -174,7 +219,7 @@ export const getUserById = async (req: AuthRequest, res: Response): Promise<void
 // @access  Private (Admin only)
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, email, phone, department, role, isActive } = req.body;
+    const { name, email, phone, department, role, isActive, studentData, dateOfBirth } = req.body;
 
     // Split name into firstName and lastName
     const nameParts = name.split(' ');
@@ -192,6 +237,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
           lastName,
           phone,
           department,
+          ...(dateOfBirth && { dateOfBirth }), // Only include dateOfBirth if it exists
         },
       },
       { new: true, runValidators: true }
@@ -203,6 +249,27 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
         message: 'User not found',
       });
       return;
+    }
+    
+    // If it's a student and studentData is provided, update the student profile
+    if (role === 'student' && studentData) {
+      let student = await Student.findOne({ userId: updatedUser._id });
+      if (student) {
+        // Update existing student
+        student.fathers_name = studentData.fathers_name;
+        student.phone = studentData.phone || phone;
+        student.date_of_birth = studentData.date_of_birth;
+        await student.save();
+      } else {
+        // Create new student profile
+        student = new Student({
+          userId: updatedUser._id,
+          fathers_name: studentData.fathers_name,
+          phone: studentData.phone || phone,
+          date_of_birth: studentData.date_of_birth,
+        });
+        await student.save();
+      }
     }
 
     res.status(200).json({
@@ -320,14 +387,19 @@ export const uploadUsers = (req: AuthRequest, res: Response): void => {
       });
     }
 
-    const userType = req.body.userType as 'student' | 'teacher' | 'tpo' || 'student';
+    const userType = req.body.userType as 'student' | 'teacher' | 'tpo';
     
-    if (!['student', 'teacher', 'tpo'].includes(userType)) {
+    // Default to 'student' if userType is not provided
+    const validatedUserType = userType || 'student';
+    
+    if (!['student', 'teacher', 'tpo'].includes(validatedUserType)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid user type. Must be student, teacher, or tpo',
       });
     }
+    
+    console.log(`Processing upload for user type: ${validatedUserType}`);
 
     const results: any[] = [];
     const errors: string[] = [];
@@ -353,43 +425,181 @@ export const uploadUsers = (req: AuthRequest, res: Response): void => {
       });
 
       // Process each row
+      console.log(`Processing ${rows.length} rows from CSV`);
+      
+      // Track emails to detect duplicates in the same CSV file
+      const processedEmails = new Set<string>();
+      
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+        console.log(`Processing row ${i + 2}:`, row); // i+2 because row 0 is header, so actual data starts at row 2
+        
+        // Check for duplicate email in the same CSV file
+        const email = (row.email || '').toString().trim().toLowerCase();
+        if (processedEmails.has(email)) {
+          errors.push(`Row ${i + 2}: Duplicate email ${email} found in this CSV file`);
+          continue;
+        }
+        processedEmails.add(email);
         
         try {
           // Validate required fields based on user type
-          if (userType === 'student') {
-            if (!row.name || !row.father_name || !row.phone || !row.date_of_birth || !row.email) {
-              errors.push(`Row ${i + 2}: Missing required fields (name, father_name, phone, date_of_birth, email)`);
+          if (!row.name) {
+            errors.push(`Row ${i + 2}: Missing required field 'name'`);
+            continue;
+          }
+          if (!row.phone) {
+            errors.push(`Row ${i + 2}: Missing required field 'phone'`);
+            continue;
+          }
+          if (!row.email) {
+            errors.push(`Row ${i + 2}: Missing required field 'email'`);
+            continue;
+          }
+          
+          if (validatedUserType === 'student') {
+            if (!row.father_name) {
+              errors.push(`Row ${i + 2}: Missing required field 'father_name'`);
+              continue;
+            }
+            if (!row.date_of_birth) {
+              errors.push(`Row ${i + 2}: Missing required field 'date_of_birth'`);
               continue;
             }
           } else {
-            if (!row.name || !row.phone || !row.email) {
-              errors.push(`Row ${i + 2}: Missing required fields (name, phone, email)`);
+            // For teachers and TPOs, date_of_birth is optional but if provided, should be valid
+            if (row.date_of_birth && typeof row.date_of_birth === 'string') {
+              // Support multiple date formats: YYYY-MM-DD, MM-DD-YYYY, DD-MM-YYYY
+              // Convert to YYYY-MM-DD format
+              let originalDate = row.date_of_birth.toString().replace(/^"|"$/g, '').trim();
+              originalDate = convertToStandardDateFormat(originalDate);
+              
+              const dateRegex = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
+              if (!dateRegex.test(originalDate)) {
+                errors.push(`Row ${i + 2}: Invalid date of birth format (expected YYYY-MM-DD, got ${originalDate})`);
+                continue;
+              }
+              
+              // Additional validation: check if it's a valid date
+              const date = new Date(originalDate);
+              if (isNaN(date.getTime())) {
+                errors.push(`Row ${i + 2}: Invalid date value (${originalDate})`);
+                continue;
+              }
+              
+              // Update the row with the standardized date
+              row.date_of_birth = originalDate;
+            }
+          }
+          
+          // Validate email format
+          if (!row.email || typeof row.email !== 'string') {
+            errors.push(`Row ${i + 2}: Missing or invalid email field`);
+            continue;
+          }
+                    
+          // For students, validate email ends with @gcekbpatna.ac.in
+          if (validatedUserType === 'student') {
+            const emailRegex = /^[\w._%+-]+@gcekbpatna\.ac\.in$/i;
+            if (!emailRegex.test(row.email.trim())) {
+              errors.push(`Row ${i + 2}: Invalid email format for student (${row.email.trim()}). Must end with @gcekbpatna.ac.in`);
+              continue;
+            }
+          } else {
+            // For teachers and TPOs, validate general email format
+            const emailRegex = /^[\w._%+-]+@([\w-]+\.)+[\w-]{2,}$/;
+            if (!emailRegex.test(row.email.trim())) {
+              errors.push(`Row ${i + 2}: Invalid email format (${row.email.trim()})`);
               continue;
             }
           }
+          
+          // Additional validation for students: date of birth is already validated above
+          
+          // Validate phone number format
+          if (!row.phone || typeof row.phone !== 'string') {
+            errors.push(`Row ${i + 2}: Missing or invalid phone field`);
+            continue;
+          }
+          
+          // Basic phone validation - should be at least 7 digits
+          const phoneDigits = row.phone.replace(/[^\d]/g, '');
+          if (phoneDigits.length < 7) {
+            errors.push(`Row ${i + 2}: Invalid phone number format (${row.phone}) - must be at least 7 digits`);
+            continue;
+          }
+          
+          // Validate name format
+          if (!row.name || typeof row.name !== 'string' || row.name.trim().length < 1) {
+            errors.push(`Row ${i + 2}: Invalid name field`);
+            continue;
+          }
+          
+          // Validate father's name for students
+          if (validatedUserType === 'student' && (!row.father_name || typeof row.father_name !== 'string' || row.father_name.trim().length < 1)) {
+            errors.push(`Row ${i + 2}: Invalid father_name field`);
+            continue;
+          }
 
-          // Split name into first and last name
-          const nameParts = row.name.trim().split(' ');
+          // Split name into first and last name (after removing titles)
+          const name = row.name || '';
+          // Remove common titles/prefixes and get just the name part
+          const cleanedName = name.replace(/^(Dr\.?|Prof\.?|Mr\.?|Mrs\.?|Ms\.?|Miss\.?)\s*/i, '').trim();
+          const nameParts = cleanedName.split(' ');
           const firstName = nameParts[0];
           const lastName = nameParts.slice(1).join(' ') || '';
 
           // Check if user already exists by email
-          let existingUser = await User.findOne({ email: row.email });
+          let existingUser = await User.findOne({ email: row.email }).select('+password');
+          
+          // For all user types, create password from first 4 letters of name (capitalized) + year of birth
+          let tempPassword = 'TempPassword123!'; // Default fallback
+                      
+          // Take first 4 letters of the first name and capitalize them, pad with spaces if needed
+          let namePart = firstName.substring(0, 4).toUpperCase();
+          // Ensure it's exactly 4 characters by padding with spaces if needed
+          namePart = namePart.padEnd(4, ' ').substring(0, 4);
+                      
+          // Extract year from date of birth if available
+          let yearOfBirth = '0000';
+          if (row.date_of_birth) {
+            const dob = row.date_of_birth;
+            const dateParts = dob.split('-'); // YYYY-MM-DD format
+            yearOfBirth = dateParts[0] || '0000';
+          }
+                      
+          tempPassword = namePart + yearOfBirth;
+          console.log(`Creating password for ${row.email} (${validatedUserType}): ${namePart} + ${yearOfBirth} = ${tempPassword}`);
+                      
+          // Validate the constructed password
+          if (tempPassword.length !== 8 || !/^[A-Z]{4}\d{4}$/.test(tempPassword)) {
+            errors.push(`Row ${i + 2}: Invalid password format (${tempPassword}) for ${validatedUserType} ${row.email}`);
+            continue;
+          }
           
           if (existingUser) {
             // Update existing user
             existingUser.profile.firstName = firstName;
             existingUser.profile.lastName = lastName;
             existingUser.profile.phone = row.phone;
-            existingUser.profile.department = row.department || '';
-            existingUser.role = userType;
+            existingUser.profile.department = row.department || existingUser.profile.department || '';
+            if (row.date_of_birth) {
+              existingUser.profile.dateOfBirth = row.date_of_birth;
+            }
+            existingUser.role = validatedUserType;
+            
+            console.log(`Updating user with email ${row.email}, role ${validatedUserType}, original date_of_birth: ${row.date_of_birth}, final password: '${tempPassword}' (length: ${tempPassword.length})`);
+            
+            // Debug: Show what the password looks like in hex to see hidden characters
+            console.log(`Password in hex: ${Buffer.from(tempPassword).toString('hex')}`);
+            
+            existingUser.password = await bcrypt.hash(tempPassword, 10);
+            console.log(`Generated hash: ${existingUser.password}`);
             
             await existingUser.save();
             
             // If user is a student, also update student-specific fields
-            if (userType === 'student') {
+            if (validatedUserType === 'student') {
               let student = await Student.findOne({ userId: existingUser._id });
               if (!student) {
                 student = new Student({
@@ -409,21 +619,30 @@ export const uploadUsers = (req: AuthRequest, res: Response): void => {
             updatedCount++;
           } else {
             // Create new user
+            console.log(`Creating user with email ${row.email}, role ${validatedUserType}, original date_of_birth: ${row.date_of_birth}, final password: '${tempPassword}' (length: ${tempPassword.length})`);
+            
+            // Debug: Show what the password looks like in hex to see hidden characters
+            console.log(`Password in hex: ${Buffer.from(tempPassword).toString('hex')}`);
+            
+            const hashedPassword = await bcrypt.hash(tempPassword, 10);
+            console.log(`Generated hash: ${hashedPassword}`);
+            
             const newUser = await User.create({
               email: row.email,
-              password: 'TempPassword123!', // Default password for bulk uploads
-              role: userType,
+              password: hashedPassword,
+              role: validatedUserType,
               profile: {
                 firstName,
                 lastName,
                 phone: row.phone,
                 department: row.department || '',
+                ...(row.date_of_birth && { dateOfBirth: row.date_of_birth }), // Only include dateOfBirth if it exists
               },
               isActive: true,
             });
             
             // If user is a student, create student-specific fields
-            if (userType === 'student') {
+            if (validatedUserType === 'student') {
               await Student.create({
                 userId: newUser._id,
                 fathers_name: row.father_name,
@@ -435,12 +654,21 @@ export const uploadUsers = (req: AuthRequest, res: Response): void => {
             createdCount++;
           }
         } catch (error: any) {
-          errors.push(`Row ${i + 2}: ${error.message || 'Error processing row'}`);
+          // Handle duplicate email error specifically
+          if (error.code === 11000) {
+            // Duplicate key error
+            const duplicateEmail = error.keyValue.email;
+            errors.push(`Row ${i + 2}: Email ${duplicateEmail} already exists in the database. Skipping duplicate entry.`);
+          } else {
+            errors.push(`Row ${i + 2}: ${error.message || 'Error processing row'}`);
+          }
         }
       }
 
       // Clean up: delete the temporary file
       fs.unlinkSync(req.file.path);
+      
+      console.log(`Upload completed: ${createdCount} created, ${updatedCount} updated, ${errors.length} errors`);
 
       res.status(200).json({
         success: true,

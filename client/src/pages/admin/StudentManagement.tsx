@@ -27,19 +27,19 @@ import axios from 'axios';
 
 interface Student {
   _id: string;
-  userId: {
-    _id: string;
-    email: string;
-    profile: {
-      firstName: string;
-      lastName: string;
-      phone?: string;
-      department?: string;
-    };
+  email: string;
+  role: 'student' | 'teacher' | 'tpo' | 'admin';
+  profile: {
+    name: string;
+    phone?: string;
+    department?: string;
   };
-  fathers_name: string;
-  phone: string;
-  date_of_birth: string;
+  studentInfo?: {
+    fathers_name: string;
+    phone: string;
+    date_of_birth: string;
+  };
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -73,8 +73,10 @@ const StudentManagement: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/students');
-      setStudents(response.data.data);
+      const response = await axios.get('/admin/users');
+      // Filter to only show students
+      const studentUsers = response.data.data.filter((user: any) => user.role === 'student');
+      setStudents(studentUsers);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to fetch students');
     } finally {
@@ -84,10 +86,9 @@ const StudentManagement: React.FC = () => {
 
   const filterStudents = () => {
     const filtered = students.filter(student =>
-      student.userId.profile.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.userId.profile.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.userId.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.fathers_name.toLowerCase().includes(searchTerm.toLowerCase())
+      student.profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.studentInfo?.fathers_name && student.studentInfo.fathers_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredStudents(filtered);
   };
@@ -113,15 +114,20 @@ const StudentManagement: React.FC = () => {
   };
 
   const handleEditClick = (student: Student) => {
+    // Split the full name back into first and last name
+    const nameParts = student.profile.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
     setCurrentStudent(student);
     setFormData({
-      firstName: student.userId.profile.firstName,
-      lastName: student.userId.profile.lastName,
-      email: student.userId.email,
-      phone: student.phone,
-      fathers_name: student.fathers_name,
-      date_of_birth: student.date_of_birth,
-      department: student.userId.profile.department || '',
+      firstName: firstName,
+      lastName: lastName,
+      email: student.email,
+      phone: student.profile.phone || '',
+      fathers_name: student.studentInfo?.fathers_name || '',
+      date_of_birth: student.studentInfo?.date_of_birth || '',
+      department: student.profile.department || '',
     });
     setEditDialogOpen(true);
   };
@@ -135,7 +141,14 @@ const StudentManagement: React.FC = () => {
     try {
       if (!currentStudent) return;
       
-      await axios.put(`/api/admin/students/${currentStudent._id}`, formData);
+      await axios.put(`/admin/users/${currentStudent._id}`, {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        role: 'student',
+        isActive: currentStudent.isActive || true
+      });
       toast.success('Student updated successfully');
       setEditDialogOpen(false);
       fetchStudents();
@@ -148,7 +161,7 @@ const StudentManagement: React.FC = () => {
     try {
       if (!currentStudent) return;
       
-      await axios.delete(`/api/admin/students/${currentStudent._id}`);
+      await axios.delete(`/admin/users/${currentStudent._id}`);
       toast.success('Student deleted successfully');
       setDeleteDialogOpen(false);
       fetchStudents();
@@ -159,7 +172,7 @@ const StudentManagement: React.FC = () => {
 
   const handleBulkDelete = async () => {
     try {
-      await axios.delete('/api/admin/students/bulk', { data: { ids: selectedStudents } });
+      await axios.delete('/admin/users/bulk', { data: { ids: selectedStudents } });
       toast.success('Selected students deleted successfully');
       setSelectedStudents([]);
       fetchStudents();
@@ -236,13 +249,13 @@ const StudentManagement: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      {student.userId.profile.firstName} {student.userId.profile.lastName}
+                      {student.profile.name}
                     </TableCell>
-                    <TableCell>{student.userId.email}</TableCell>
-                    <TableCell>{student.fathers_name}</TableCell>
-                    <TableCell>{student.phone}</TableCell>
-                    <TableCell>{student.userId.profile.department || 'N/A'}</TableCell>
-                    <TableCell>{new Date(student.date_of_birth).toLocaleDateString()}</TableCell>
+                    <TableCell>{student.email}</TableCell>
+                    <TableCell>{student.studentInfo?.fathers_name || 'N/A'}</TableCell>
+                    <TableCell>{student.profile.phone || 'N/A'}</TableCell>
+                    <TableCell>{student.profile.department || 'N/A'}</TableCell>
+                    <TableCell>{student.studentInfo?.date_of_birth ? new Date(student.studentInfo.date_of_birth).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell>
                       <IconButton
                         color="primary"
@@ -345,7 +358,7 @@ const StudentManagement: React.FC = () => {
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete student {currentStudent?.userId.profile.firstName} {currentStudent?.userId.profile.lastName}?
+            Are you sure you want to delete student {currentStudent?.profile.name}?
           </Typography>
         </DialogContent>
         <DialogActions>

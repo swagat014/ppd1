@@ -11,8 +11,10 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
-import { School, BusinessCenter, AdminPanelSettings, Person } from '@mui/icons-material';
+import { School, BusinessCenter, AdminPanelSettings, Person, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface TabPanelProps {
@@ -39,6 +41,7 @@ function TabPanel(props: TabPanelProps) {
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<'student' | 'tpo' | 'admin' | 'teacher'>('student');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -234,7 +237,7 @@ const Login: React.FC = () => {
                 letterSpacing: '0.5px',
               }}
             >
-              Placement Preparation Platform
+              ZestPrep
             </Typography>
             <Typography variant="body2" sx={{ color: '#6ee7b7', opacity: 0.9, position: 'relative' }}>
               Login to continue your placement journey
@@ -292,12 +295,33 @@ const Login: React.FC = () => {
               <TextField
                 fullWidth
                 label="Password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 margin="normal"
                 required
                 sx={inputStyle}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        size="large"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                helperText={role === 'student' ? 'Students: Use your date of birth as password (YYYY-MM-DD format)' : ''}
+                FormHelperTextProps={{
+                  sx: {
+                    color: '#a7f3d0',
+                    fontSize: '0.75rem',
+                  },
+                }}
               />
 
               <Button

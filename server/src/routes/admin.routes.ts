@@ -19,12 +19,13 @@ router.route('/users')
     res.status(501).json({ success: false, message: 'Direct user creation not allowed. Use CSV upload.' });
   });
 
+// Specific bulk delete route needs to come before the parameterized route
+router.delete('/users/bulk', bulkDeleteUsers);
+
 router.route('/users/:id')
   .get(getUserById)
   .put(updateUser)
   .delete(deleteUser);
-
-router.delete('/users/bulk', bulkDeleteUsers);
 
 // Bulk user upload route
 router.post('/users/upload', uploadUsers);

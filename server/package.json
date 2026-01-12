@@ -1,7 +1,7 @@
 {
-  "name": "placement-platform-server",
+  "name": "zestprep-server",
   "version": "1.0.0",
-  "description": "Backend server for Placement Preparation Platform",
+  "description": "Backend server for ZestPrep",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",

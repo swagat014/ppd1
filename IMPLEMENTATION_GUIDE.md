@@ -1,4 +1,4 @@
-# Placement Preparation Platform - Complete Implementation Guide
+# ZestPrep - Complete Implementation Guide
 
 ## 📋 Table of Contents
 1. [Overview](#overview)
@@ -15,7 +15,7 @@
 
 ## 🎯 Overview
 
-The Placement Preparation Platform is a comprehensive web application designed to help students prepare for campus placements. It includes:
+ZestPrep is a comprehensive web application designed to help students prepare for campus placements. It includes:
 
 - **Resume Analysis** with ATS compatibility checking
 - **DSA Practice** with company-specific problems and integrated code editor

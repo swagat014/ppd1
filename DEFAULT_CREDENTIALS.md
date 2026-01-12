@@ -1,6 +1,6 @@
 # Default Login Credentials
 
-This document contains the default login credentials for testing the Placement Preparation Platform.
+This document contains the default login credentials for testing ZestPrep.
 
 ## 🚀 How to Create Default Users
 
