@@ -1,7 +1,7 @@
 {
-  "name": "zestprep"
+  "name": "zestprep",
   "version": "1.0.0",
-  "description": "Comprehensive ZestPrep with Resume Analysis, DSA Practice, Mock Interviews, and Analytics"
+  "description": "Comprehensive ZestPrep with Resume Analysis, DSA Practice, Mock Interviews, and Analytics",
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",

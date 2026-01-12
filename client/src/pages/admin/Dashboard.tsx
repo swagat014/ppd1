@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import {
   Container,
@@ -27,17 +27,41 @@ import {
   School,
   LocalLibrary,
 } from '@mui/icons-material';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const AdminDashboard: React.FC = () => {
-  // Sample data for demonstration
-  const stats = [
-    { title: 'Total Users', value: '2,548', icon: <People />, color: 'primary' },
-    { title: 'Students', value: '2,100', icon: <School />, color: 'success' },
-    { title: 'TPO Officers', value: '12', icon: <Work />, color: 'warning' },
-    { title: 'Teachers', value: '36', icon: <LocalLibrary />, color: 'info' },
-    { title: 'Departments', value: '8', icon: <Business />, color: 'secondary' },
-    { title: 'Colleges', value: '3', icon: <Assessment />, color: 'primary' },
-  ];
+  const [stats, setStats] = useState([
+    { title: 'Total Users', value: '0', icon: <People />, color: 'primary' },
+    { title: 'Students', value: '0', icon: <School />, color: 'success' },
+    { title: 'TPO Officers', value: '0', icon: <Work />, color: 'warning' },
+    { title: 'Teachers', value: '0', icon: <LocalLibrary />, color: 'info' },
+    { title: 'Departments', value: '0', icon: <Business />, color: 'secondary' },
+    { title: 'Colleges', value: '1', icon: <Assessment />, color: 'primary' },
+  ]);
+  
+  useEffect(() => {
+    fetchStats();
+  }, []);
+  
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get('/admin/dashboard');
+      const data = response.data.data;
+      
+      setStats([
+        { title: 'Total Users', value: data.totalUsers.toString(), icon: <People />, color: 'primary' },
+        { title: 'Students', value: data.students.toString(), icon: <School />, color: 'success' },
+        { title: 'TPO Officers', value: data.tpos.toString(), icon: <Work />, color: 'warning' },
+        { title: 'Teachers', value: data.teachers.toString(), icon: <LocalLibrary />, color: 'info' },
+        { title: 'Departments', value: data.departments.toString(), icon: <Business />, color: 'secondary' },
+        { title: 'Colleges', value: '1', icon: <Assessment />, color: 'primary' },
+      ]);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      toast.error('Failed to load dashboard statistics');
+    }
+  };
 
   const recentActivities = [
     { id: 1, text: 'New user registration: John Doe (Student)', time: '5 minutes ago' },
@@ -71,7 +95,7 @@ const AdminDashboard: React.FC = () => {
           {/* Stats Cards */}
           {stats.map((stat, index) => (
             <Grid item xs={12} sm={6} md={4} key={index}>
-              <Card>
+              <Card sx={{ background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
                 <CardContent>
                   <Box display="flex" justifyContent="space-between">
                     <Box>
@@ -108,7 +132,7 @@ const AdminDashboard: React.FC = () => {
 
           {/* Recent Activities */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" mb={2}>
                   Recent Activities
@@ -135,7 +159,7 @@ const AdminDashboard: React.FC = () => {
 
           {/* System Status */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" mb={2}>
                   System Status
@@ -170,7 +194,7 @@ const AdminDashboard: React.FC = () => {
 
           {/* User Distribution Chart Placeholder */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" mb={2}>
                   User Distribution
@@ -194,7 +218,7 @@ const AdminDashboard: React.FC = () => {
 
           {/* Placement Overview Chart Placeholder */}
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" mb={2}>
                   Placement Overview

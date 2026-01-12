@@ -5,10 +5,31 @@ import fs from 'fs';
 import csv from 'csv-parser';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
+import Department from '../models/Department.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import * as bcrypt from 'bcryptjs';
 
 // import * as jwt from 'jsonwebtoken'; // Not needed for CSV upload functionality
+
+// Helper function to create a default password based on name and date of birth
+function createDefaultPassword(name: string, dateOfBirth?: string): string {
+  // Take first 4 letters of the first name and capitalize them, pad with spaces if needed
+  const nameParts = name.split(' ');
+  const firstName = nameParts[0];
+  let namePart = firstName.substring(0, 4).toUpperCase();
+  // Ensure it's exactly 4 characters by padding with spaces if needed
+  namePart = namePart.padEnd(4, ' ').substring(0, 4);
+
+  // Extract year from date of birth if available
+  let yearOfBirth = '0000';
+  if (dateOfBirth) {
+    const dateParts = dateOfBirth.split('-'); // YYYY-MM-DD format
+    yearOfBirth = dateParts[0] || '0000';
+  }
+
+  const tempPassword = namePart + yearOfBirth;
+  return tempPassword;
+}
 
 // Helper function to convert various date formats to YYYY-MM-DD
 function convertToStandardDateFormat(dateString: string): string {
@@ -315,6 +336,158 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
     res.status(500).json({
       success: false,
       message: error.message || 'Server error',
+    });
+  }
+};
+
+// @desc    Create a new user
+// @route   POST /api/admin/users
+// @access  Private (Admin only)
+export const createUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { name, email, phone, department, role, isActive, studentData, dateOfBirth: inputDateOfBirth } = req.body;
+
+    // Validation
+    if (!name || !email || !role) {
+      res.status(400).json({
+        success: false,
+        message: 'Name, email, and role are required',
+      });
+      return;
+    }
+
+    // Validate role
+    const validRoles = ['student', 'teacher', 'tpo', 'admin'];
+    if (!validRoles.includes(role)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be student, teacher, tpo, or admin',
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[\w._%+-]+@([\w-]+\.)+[\w-]{2,}$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid email format',
+      });
+      return;
+    }
+
+    // For students, validate email ends with @gcekbpatna.ac.in
+    if (role === 'student') {
+      const studentEmailRegex = /^[\w._%+-]+@gcekbpatna\.ac\.in$/i;
+      if (!studentEmailRegex.test(email)) {
+        res.status(400).json({
+          success: false,
+          message: `Invalid email format for student (${email}). Must end with @gcekbpatna.ac.in`,
+        });
+        return;
+      }
+    }
+
+    // Validate phone number format
+    if (phone) {
+      const phoneDigits = phone.replace(/[^\d]/g, '');
+      if (phoneDigits.length < 7) {
+        res.status(400).json({
+          success: false,
+          message: `Invalid phone number format (${phone}) - must be at least 7 digits`,
+        });
+        return;
+      }
+    }
+
+    // Validate date of birth format if provided
+    let validatedDateOfBirth = inputDateOfBirth; // Use the renamed variable to avoid reassignment
+    if (validatedDateOfBirth && typeof validatedDateOfBirth === 'string') {
+      // Support multiple date formats: YYYY-MM-DD, MM-DD-YYYY, DD-MM-YYYY
+      // Convert to YYYY-MM-DD format
+      let originalDate = validatedDateOfBirth.toString().replace(/^"|"$/g, '').trim();
+      originalDate = convertToStandardDateFormat(originalDate);
+
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
+      if (!dateRegex.test(originalDate)) {
+        res.status(400).json({
+          success: false,
+          message: `Invalid date of birth format (expected YYYY-MM-DD, got ${originalDate})`,
+        });
+        return;
+      }
+
+      // Additional validation: check if it's a valid date
+      const date = new Date(originalDate);
+      if (isNaN(date.getTime())) {
+        res.status(400).json({
+          success: false,
+          message: `Invalid date value (${originalDate})`,
+        });
+        return;
+      }
+
+      // Update the validatedDateOfBirth with the standardized format
+      validatedDateOfBirth = originalDate;
+    }
+
+    // Check if user already exists by email
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      res.status(400).json({
+        success: false,
+        message: `User with email ${email} already exists`,
+      });
+      return;
+    }
+
+    // Split name into firstName and lastName
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Create default password based on name and date of birth
+    const tempPassword = createDefaultPassword(name, validatedDateOfBirth);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Create the new user
+    const newUser = await User.create({
+      email,
+      password: hashedPassword,
+      role,
+      profile: {
+        firstName,
+        lastName,
+        phone: phone || '',
+        department: department || '',
+        ...(validatedDateOfBirth && { dateOfBirth: validatedDateOfBirth }), // Only include dateOfBirth if it exists
+      },
+      isActive: isActive !== undefined ? isActive : true,
+    });
+
+    // If user is a student and studentData is provided, create student-specific fields
+    if (role === 'student' && studentData) {
+      await Student.create({
+        userId: newUser._id,
+        fathers_name: studentData.fathers_name || '',
+        phone: studentData.phone || phone || '',
+        date_of_birth: studentData.date_of_birth || validatedDateOfBirth || '',
+      });
+    }
+
+    // Fetch the created user without password
+    const userWithoutPassword = await User.findById(newUser._id).select('-password');
+
+    res.status(201).json({
+      success: true,
+      data: userWithoutPassword,
+      message: 'User created successfully',
+    });
+  } catch (error: any) {
+    console.error('Error creating user:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error during user creation',
     });
   }
 };
@@ -692,6 +865,126 @@ export const uploadUsers = (req: AuthRequest, res: Response): void => {
   });
 };
 
+// @desc    Get all departments
+// @route   GET /api/admin/departments
+// @access  Private (Admin only)
+export const getAllDepartments = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const departments = await Department.find({}).sort({ createdAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      data: departments,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+};
+
+// @desc    Create a new department
+// @route   POST /api/admin/departments
+// @access  Private (Admin only)
+export const createDepartment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { name } = req.body;
+    
+    if (!name) {
+      res.status(400).json({
+        success: false,
+        message: 'Department name is required',
+      });
+      return;
+    }
+    
+    // Check if department already exists
+    const existingDept = await Department.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    if (existingDept) {
+      res.status(400).json({
+        success: false,
+        message: 'Department already exists',
+      });
+      return;
+    }
+    
+    const department = await Department.create({ name });
+    
+    res.status(201).json({
+      success: true,
+      data: department,
+      message: 'Department created successfully',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+};
+
+// @desc    Update department
+// @route   PUT /api/admin/departments/:id
+// @access  Private (Admin only)
+export const updateDepartment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { name, isActive } = req.body;
+    
+    const department = await Department.findByIdAndUpdate(
+      req.params.id,
+      { name, isActive },
+      { new: true, runValidators: true }
+    );
+    
+    if (!department) {
+      res.status(404).json({
+        success: false,
+        message: 'Department not found',
+      });
+      return;
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: department,
+      message: 'Department updated successfully',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+};
+
+// @desc    Delete department
+// @route   DELETE /api/admin/departments/:id
+// @access  Private (Admin only)
+export const deleteDepartment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const department = await Department.findByIdAndDelete(req.params.id);
+    
+    if (!department) {
+      res.status(404).json({
+        success: false,
+        message: 'Department not found',
+      });
+      return;
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Department deleted successfully',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+};
+
 // @desc    Get dashboard stats
 // @route   GET /api/admin/dashboard
 // @access  Private (Admin only)
@@ -702,6 +995,22 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     const teachersCount = await User.countDocuments({ role: 'teacher' });
     const tposCount = await User.countDocuments({ role: 'tpo' });
     const adminsCount = await User.countDocuments({ role: 'admin' });
+    
+    // Define the known departments list
+    const departmentsList = [
+      'Computer Science & Engineering',
+      'Electrical Engineering',
+      'Mechanical Engineering',
+      'Civil Engineering',
+      'Electronics & Communication Engineering',
+      'Information Technology',
+      'Applied Sciences',
+      'Management Studies',
+    ];
+    
+    // Count unique departments from users
+    const uniqueDepartments = await User.distinct('profile.department', { 'profile.department': { $nin: [null, ''] } });
+    const departmentsCount = Math.max(departmentsList.length, uniqueDepartments.length);
 
     res.status(200).json({
       success: true,
@@ -711,6 +1020,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         teachers: teachersCount,
         tpos: tposCount,
         admins: adminsCount,
+        departments: departmentsCount,
       },
     });
   } catch (error: any) {

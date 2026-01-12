@@ -37,7 +37,7 @@ import {
   ToggleButton,
   CircularProgress,
 } from '@mui/material';
-import { Edit, Delete, Add, Search, Person, School, Work, Business, AdminPanelSettings } from '@mui/icons-material';
+import { Edit, Delete, Add, Search, Person, School, Work, Business, AdminPanelSettings, People } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
@@ -88,6 +88,7 @@ const UsersPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'teacher' | 'tpo' | 'admin'>('all');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [departments, setDepartments] = useState<{ _id: string; name: string; isActive: boolean }[]>([]);
   const [formData, setFormData] = useState<FormProfile>({
     name: '',
     email: '',
@@ -101,8 +102,18 @@ const UsersPage: React.FC = () => {
     },
   });
 
+  const fetchDepartments = async () => {
+    try {
+      const response = await axios.get('/admin/departments');
+      setDepartments(response.data.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch departments');
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchDepartments();
   }, []);
 
   useEffect(() => {
@@ -181,8 +192,6 @@ const UsersPage: React.FC = () => {
 
   const handleEditSubmit = async () => {
     try {
-      if (!currentUser) return;
-      
       // Prepare the payload, extracting student info if needed
       const { studentInfo, dateOfBirth, ...userData } = formData;
       
@@ -196,15 +205,37 @@ const UsersPage: React.FC = () => {
         };
       }
       
-      // Always include date of birth in the profile update
-      payload.dateOfBirth = dateOfBirth;
+      // Determine the date of birth to use - prioritize student date of birth for students
+      const dobToUse = formData.role === 'student' && studentInfo?.date_of_birth 
+        ? studentInfo.date_of_birth 
+        : dateOfBirth;
       
-      await axios.put(`/admin/users/${currentUser._id}`, payload);
-      toast.success('User updated successfully');
+      // Include date of birth in the payload
+      if (dobToUse) {
+        payload.dateOfBirth = dobToUse;
+      }
+      
+      if (formData.role === 'student' && studentInfo) {
+        payload.studentData = {
+          fathers_name: studentInfo.fathers_name || '',
+          date_of_birth: studentInfo.date_of_birth || '',
+        };
+      }
+      
+      if (currentUser) {
+        // Update existing user
+        await axios.put(`/admin/users/${currentUser._id}`, payload);
+        toast.success('User updated successfully');
+      } else {
+        // Create new user
+        await axios.post('/admin/users', payload);
+        toast.success('User created successfully');
+      }
+      
       setEditDialogOpen(false);
       fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update user');
+      toast.error(error.response?.data?.message || 'Failed to save user');
     }
   };
 
@@ -265,13 +296,13 @@ const UsersPage: React.FC = () => {
   return (
     <AdminLayout>
       <Container maxWidth="xl">
-        <Box my={4}>
+        <Box my={3}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
             <Box>
-              <Typography variant="h3" component="h1" fontWeight="bold" color="primary.main" gutterBottom>
-                User Management Dashboard
+              <Typography variant="h3" component="h1" fontWeight="bold" color="primary.main" gutterBottom sx={{ textShadow: '0 0 15px rgba(0, 100, 0, 0.4)', fontSize: { xs: '1.8rem', sm: '2.2rem' } }}>
+                👥 User Management
               </Typography>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant="h6" color="text.secondary" sx={{ opacity: 0.8 }}>
                 Manage all platform users and their roles
               </Typography>
             </Box>
@@ -283,7 +314,8 @@ const UsersPage: React.FC = () => {
                     color="error"
                     startIcon={<Delete />}
                     onClick={handleBulkDelete}
-                    sx={{ minWidth: 140 }}
+                    size="small"
+                    sx={{ minWidth: 120, height: 36 }}
                   >
                     Delete ({selectedUsers.length})
                   </Button>
@@ -292,7 +324,7 @@ const UsersPage: React.FC = () => {
               <Button
                 variant="contained"
                 color="primary"
-                startIcon={<Add />}
+                startIcon={<Add sx={{ color: 'black' }} />}
                 onClick={() => {
                   setFormData({
                     name: '',
@@ -301,19 +333,39 @@ const UsersPage: React.FC = () => {
                     department: '',
                     role: 'student',
                     isActive: true,
+                    dateOfBirth: '',
+                    studentInfo: {
+                      fathers_name: '',
+                      date_of_birth: '',
+                    },
                   });
                   setCurrentUser(null);
                   setEditDialogOpen(true);
                 }}
-                sx={{ minWidth: 140 }}
+                size="small"
+                sx={{ 
+                  background: 'linear-gradient(135deg, #00cc52, #00ff64)',
+                  color: 'black',
+                  fontWeight: 'bold',
+                  textTransform: 'none',
+                  fontSize: '0.9rem',
+                  minWidth: 100, 
+                  height: 36,
+                  boxShadow: '0 4px 12px rgba(0, 204, 82, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #00ff64, #00cc52)',
+                    boxShadow: '0 6px 16px rgba(0, 204, 82, 0.4)',
+                  },
+                }}
               >
                 Add User
               </Button>
             </Box>
           </Box>
 
-          <Paper elevation={2} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-            <Grid container alignItems="center" spacing={2}>
+          <Paper elevation={8} sx={{ p: 2, mb: 3, borderRadius: 3, background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(10, 10, 10, 0.7))', backdropFilter: 'blur(12px)', border: '1px solid rgba(0, 100, 0, 0.4)', boxShadow: '0 10px 30px rgba(0, 100, 0, 0.25)', position: 'relative', overflow: 'hidden' }}>
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, rgba(0, 100, 0, 0.8), transparent)' }} />
+            <Grid container alignItems="center" spacing={2} pt={1}>
               <Grid item xs={12} md={6}>
                 <TextField
                   placeholder="Search users by name, email, or role..."
@@ -323,7 +375,21 @@ const UsersPage: React.FC = () => {
                   value={searchTerm}
                   onChange={handleSearchChange}
                   InputProps={{
-                    startAdornment: <Search sx={{ mr: 1 }} />,
+                    startAdornment: <Search sx={{ mr: 1.5 }} />,
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      background: 'rgba(0, 100, 0, 0.15)',
+                      borderRadius: 2,
+                      pl: 1,
+                      '&:hover fieldset': {
+                        borderColor: 'rgba(0, 100, 0, 0.7)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: 'rgba(0, 100, 0, 0.9)',
+                        borderWidth: '2px',
+                      },
+                    }
                   }}
                 />
               </Grid>
@@ -335,46 +401,77 @@ const UsersPage: React.FC = () => {
                       variant="outlined"
                       color="primary"
                       size="small"
+                      sx={{ height: 28, background: 'rgba(0, 204, 82, 0.15)', border: '1px solid rgba(0, 204, 82, 0.4)', fontWeight: 600, color: '#e8f5e9' }}
                     />
                     <Chip
                       label={`Students: ${users.filter(u => u.role === 'student').length}`}
                       variant="outlined"
                       color="primary"
                       size="small"
+                      sx={{ height: 28, background: 'rgba(0, 204, 82, 0.15)', border: '1px solid rgba(0, 204, 82, 0.4)', fontWeight: 600, color: '#e8f5e9' }}
                     />
                     <Chip
                       label={`Teachers: ${users.filter(u => u.role === 'teacher').length}`}
                       variant="outlined"
                       color="info"
                       size="small"
+                      sx={{ height: 28, background: 'rgba(0, 204, 82, 0.15)', border: '1px solid rgba(0, 204, 82, 0.4)', fontWeight: 600, color: '#e8f5e9' }}
                     />
                     <Chip
                       label={`TPO: ${users.filter(u => u.role === 'tpo').length}`}
                       variant="outlined"
                       color="warning"
                       size="small"
+                      sx={{ height: 28, background: 'rgba(0, 204, 82, 0.15)', border: '1px solid rgba(0, 204, 82, 0.4)', fontWeight: 600, color: '#e8f5e9' }}
                     />
                   </Box>
                   <ToggleButtonGroup
                     value={roleFilter}
                     exclusive
                     onChange={(event, newRole) => newRole !== null && setRoleFilter(newRole)}
-                    size="small"
+                    size="medium"
                     color="primary"
+                    orientation="horizontal"
+                    sx={{ 
+                      height: 40, 
+                      background: 'rgba(0, 204, 82, 0.1)', 
+                      borderRadius: 2, 
+                      border: '2px solid rgba(0, 204, 82, 0.4)', 
+                      p: 0.5,
+                      display: 'inline-flex',
+                      flexWrap: 'nowrap',
+                      gap: 0.5,
+                      '& .MuiToggleButtonGroup-grouped': {
+                        margin: 0,
+                        border: 'none',
+                        borderRadius: '8px !important',
+                        '&.Mui-selected': {
+                          background: 'linear-gradient(135deg, #00cc52, #00ff64)',
+                          color: 'black',
+                          boxShadow: '0 4px 10px rgba(0, 204, 82, 0.3)',
+                        },
+                        '&:not(:first-of-type)': {
+                          borderRadius: '8px !important',
+                        },
+                        '&:first-of-type': {
+                          borderRadius: '8px !important',
+                        },
+                      }
+                    }}
                   >
-                    <ToggleButton value="all" size="small">
+                    <ToggleButton value="all" size="medium" sx={{ px: 2.5, py: 1, color: 'text.primary', fontWeight: 'bold', fontSize: '0.9rem', minWidth: 80 }}>
                       All
                     </ToggleButton>
-                    <ToggleButton value="student" size="small">
+                    <ToggleButton value="student" size="medium" sx={{ px: 2.5, py: 1, color: 'text.primary', fontWeight: 'bold', fontSize: '0.9rem', minWidth: 80 }}>
                       Students
                     </ToggleButton>
-                    <ToggleButton value="teacher" size="small">
+                    <ToggleButton value="teacher" size="medium" sx={{ px: 2.5, py: 1, color: 'text.primary', fontWeight: 'bold', fontSize: '0.9rem', minWidth: 80 }}>
                       Teachers
                     </ToggleButton>
-                    <ToggleButton value="tpo" size="small">
+                    <ToggleButton value="tpo" size="medium" sx={{ px: 2.5, py: 1, color: 'text.primary', fontWeight: 'bold', fontSize: '0.9rem', minWidth: 80 }}>
                       TPO
                     </ToggleButton>
-                    <ToggleButton value="admin" size="small">
+                    <ToggleButton value="admin" size="medium" sx={{ px: 2.5, py: 1, color: 'text.primary', fontWeight: 'bold', fontSize: '0.9rem', minWidth: 80 }}>
                       Admin
                     </ToggleButton>
                   </ToggleButtonGroup>
@@ -384,11 +481,12 @@ const UsersPage: React.FC = () => {
                     onChange={(event, newViewMode) => newViewMode !== null && setViewMode(newViewMode)}
                     size="small"
                     color="primary"
+                    sx={{ height: 32, background: 'rgba(0, 204, 82, 0.15)', borderRadius: 2, border: '1px solid rgba(0, 204, 82, 0.4)', p: 0.5 }}
                   >
-                    <ToggleButton value="table" size="small">
+                    <ToggleButton value="table" size="small" sx={{ px: 2, py: 0.8, color: 'text.primary', '&.Mui-selected': { color: 'black', background: 'linear-gradient(135deg, #00cc52, #00ff64)' }, borderRadius: 1.5 }}>
                       Table
                     </ToggleButton>
-                    <ToggleButton value="cards" size="small">
+                    <ToggleButton value="cards" size="small" sx={{ px: 2, py: 0.8, color: 'text.primary', '&.Mui-selected': { color: 'black', background: 'linear-gradient(135deg, #00cc52, #00ff64)' }, borderRadius: 1.5 }}>
                       Cards
                     </ToggleButton>
                   </ToggleButtonGroup>
@@ -398,25 +496,32 @@ const UsersPage: React.FC = () => {
           </Paper>
 
           {viewMode === 'table' ? (
-            <Paper elevation={3} sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+            <Paper elevation={4} sx={{ mb: 3, borderRadius: 2, overflow: 'hidden', background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
               <TableContainer>
-                <Table>
-                  <TableHead sx={{ backgroundColor: 'primary.light', '& th': { fontWeight: 'bold', color: 'primary.contrastText' } }}>
+                <Table size="small">
+                  <TableHead sx={{ background: '#000000', '& th': { fontWeight: 'bold', color: 'white', textTransform: 'uppercase', letterSpacing: 1, border: '1px solid rgba(0, 204, 82, 0.3)', fontSize: '0.8rem', py: 1 }, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)' }}>
                     <TableRow>
-                      <TableCell padding="checkbox" width={60}>
+                      <TableCell padding="checkbox" width={40}>
                         <Checkbox
                           checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
                           onChange={handleSelectAll}
+                          size="small"
+                          sx={{
+                            color: '#00ff64',
+                            '&.Mui-checked': {
+                              color: '#00ff64',
+                            },
+                          }}
                         />
                       </TableCell>
-                      <TableCell width={200}>User</TableCell>
-                      <TableCell width={200}>Email</TableCell>
-                      <TableCell width={120}>Role</TableCell>
-                      <TableCell width={150}>Department</TableCell>
-                      <TableCell width={150}>Contact</TableCell>
-                      <TableCell width={200}>Additional Info</TableCell>
-                      <TableCell width={100}>Status</TableCell>
-                      <TableCell width={120}>Actions</TableCell>
+                      <TableCell width={160}>User</TableCell>
+                      <TableCell width={160}>Email</TableCell>
+                      <TableCell width={100}>Role</TableCell>
+                      <TableCell width={120}>Department</TableCell>
+                      <TableCell width={120}>Contact</TableCell>
+                      <TableCell width={160}>Additional Info</TableCell>
+                      <TableCell width={80}>Status</TableCell>
+                      <TableCell width={100}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -425,85 +530,132 @@ const UsersPage: React.FC = () => {
                         key={user._id} 
                         hover 
                         sx={{ 
-                          '&:last-child td, &:last-child th': { border: 0 },
-                          '&:nth-of-type(even)': { backgroundColor: 'grey.50' },
-                          transition: 'background-color 0.2s',
-                          '&:hover': { backgroundColor: 'action.hover' }
+                          '&:last-child td, &:last-child th': { border: '1px solid rgba(0, 204, 82, 0.4)' },
+                          '&:nth-of-type(even)': { backgroundColor: 'rgba(0, 204, 82, 0.04)' },
+                          transition: 'all 0.3s ease',
+                          '&:hover': { backgroundColor: 'rgba(0, 204, 82, 0.15)', transform: 'scale(1.005)', boxShadow: '0 0 15px rgba(0, 204, 82, 0.3)' },
+                          border: '1px solid rgba(0, 204, 82, 0.2)',
+                          borderBottom: '1px solid rgba(0, 204, 82, 0.5)',
+                          '&:not(:last-child)': {
+                            borderBottom: '1px solid rgba(0, 204, 82, 0.4)',
+                          },
+                          '&:first-of-type': {
+                            borderTop: '1px solid rgba(0, 204, 82, 0.5)',
+                          },
                         }}
                       >
-                        <TableCell padding="checkbox">
+                        <TableCell padding="checkbox" sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
                           <Checkbox
                             checked={selectedUsers.includes(user._id)}
                             onChange={() => handleSelectOne(user._id)}
+                            size="small"
+                            sx={{
+                              color: '#00ff64',
+                              '&.Mui-checked': {
+                                color: '#00ff64',
+                              },
+                            }}
                           />
                         </TableCell>
-                        <TableCell>
-                          <Stack direction="row" alignItems="center" spacing={2}>
-                            <Avatar sx={{ bgcolor: `${getRoleAvatarColor(user.role)}.main`, color: 'white' }}>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', fontWeight: '500', verticalAlign: 'middle', py: 1 }}>
+                          <Stack direction="row" alignItems="center" spacing={1.5}>
+                            <Avatar sx={{ bgcolor: `${getRoleAvatarColor(user.role)}.main`, color: 'white', border: '2px solid rgba(0, 204, 82, 0.4)', width: 32, height: 32, boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)' }}>
                               {getRoleIcon(user.role)}
                             </Avatar>
                             <Box>
-                              <Typography fontWeight="bold" color="text.primary">{user.profile.name}</Typography>
+                              <Typography fontWeight="bold" color="primary.light" variant="body2">{user.profile.name}</Typography>
                               <Typography variant="caption" color="text.secondary">
                                 Joined: {new Date(user.createdAt).toLocaleDateString()}
                               </Typography>
                             </Box>
                           </Stack>
                         </TableCell>
-                        <TableCell>
-                          <Typography noWrap>{user.email}</Typography>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
+                          <Typography noWrap variant="body2" color="primary.light">{user.email}</Typography>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
                           <Chip
                             icon={getRoleIcon(user.role)}
                             label={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                             color={getRoleColor(user.role)}
                             size="small"
                             variant="outlined"
+                            sx={{
+                              border: '1px solid rgba(0, 204, 82, 0.4)',
+                              background: 'rgba(0, 204, 82, 0.15)',
+                              height: '24px',
+                              fontSize: '0.7rem',
+                              color: '#e8f5e9',
+                            }}
                           />
                         </TableCell>
-                        <TableCell>
-                          <Typography noWrap>{user.profile.department || 'N/A'}</Typography>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
+                          <Typography noWrap variant="body2" color="primary.light">{user.profile.department || 'N/A'}</Typography>
                         </TableCell>
-                        <TableCell>
-                          <Typography noWrap>{user.profile.phone || 'N/A'}</Typography>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
+                          <Typography noWrap variant="body2" color="primary.light">{user.profile.phone || 'N/A'}</Typography>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
                           {user.role === 'student' && user.studentInfo ? (
                             <Box>
-                              <Typography variant="body2" display="block" color="text.primary" fontWeight="500">Father: {user.studentInfo.fathers_name}</Typography>
-                              <Typography variant="body2" display="block" color="text.secondary">DOB: {user.studentInfo.date_of_birth || user.profile.dateOfBirth}</Typography>
+                              <Typography variant="caption" display="block" color="primary.light" fontWeight="500">Father: {user.studentInfo.fathers_name}</Typography>
+                              <Typography variant="caption" display="block" color="text.secondary">DOB: {user.studentInfo.date_of_birth || user.profile.dateOfBirth}</Typography>
                             </Box>
                           ) : (
                             <Box>
-                              <Typography variant="body2" display="block" color="text.secondary">DOB: {user.profile.dateOfBirth || 'N/A'}</Typography>
+                              <Typography variant="caption" display="block" color="text.secondary">DOB: {user.profile.dateOfBirth || 'N/A'}</Typography>
                             </Box>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
                           <Chip
                             label={user.isActive ? 'Active' : 'Inactive'}
                             color={user.isActive ? 'success' : 'error'}
                             size="small"
                             variant="outlined"
+                            sx={{
+                              border: '1px solid rgba(0, 204, 82, 0.4)',
+                              background: 'rgba(0, 204, 82, 0.15)',
+                              height: '24px',
+                              fontSize: '0.7rem',
+                              color: '#e8f5e9',
+                            }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ border: '1px solid rgba(0, 204, 82, 0.3)', verticalAlign: 'middle', py: 1 }}>
                           <IconButton
                             color="primary"
                             onClick={() => handleEditClick(user)}
                             size="small"
                             title="Edit user"
+                            sx={{
+                              color: '#00ff64',
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 204, 82, 0.2)',
+                                color: '#ffffff',
+                              },
+                              width: '32px',
+                              height: '32px',
+                            }}
                           >
-                            <Edit />
+                            <Edit fontSize="small" />
                           </IconButton>
                           <IconButton
                             color="error"
                             onClick={() => handleDeleteClick(user)}
                             size="small"
                             title="Delete user"
+                            sx={{
+                              color: '#ff6b6b',
+                              '&:hover': {
+                                backgroundColor: 'rgba(220, 20, 60, 0.2)',
+                                color: '#ffffff',
+                              },
+                              width: '32px',
+                              height: '32px',
+                            }}
                           >
-                            <Delete />
+                            <Delete fontSize="small" />
                           </IconButton>
                         </TableCell>
                       </TableRow>
@@ -517,19 +669,24 @@ const UsersPage: React.FC = () => {
               {filteredUsers.map((user) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={user._id}>
                   <Card 
-                    elevation={3} 
+                    elevation={8} 
                     sx={{ 
                       height: '100%', 
                       display: 'flex', 
                       flexDirection: 'column',
-                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(10, 10, 10, 0.7))',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(0, 100, 0, 0.4)',
+                      borderRadius: 3,
+                      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: 6,
+                        transform: 'translateY(-5px) scale(1.03)',
+                        boxShadow: '0 15px 35px rgba(0, 100, 0, 0.4)',
+                        borderColor: 'rgba(0, 100, 0, 0.7)',
                       }
                     }}
                   >
-                    <Box sx={{ bgcolor: `${getRoleAvatarColor(user.role)}.light`, p: 2, borderBottom: 1, borderColor: 'divider' }}>
+                    <Box sx={{ bgcolor: 'rgba(0, 100, 0, 0.15)', p: 2, borderBottom: '2px solid rgba(0, 100, 0, 0.3)' }}>
                       <Box display="flex" alignItems="center" justifyContent="center" mb={1}>
                         <Avatar sx={{ bgcolor: `${getRoleAvatarColor(user.role)}.main`, color: 'white', width: 50, height: 50 }}>
                           {getRoleIcon(user.role)}
@@ -544,20 +701,28 @@ const UsersPage: React.FC = () => {
                     </Box>
                     
                     <CardContent sx={{ flexGrow: 1 }}>
-                      <Box mb={2}>
+                      <Box mb={2} display="flex" gap={1}>
                         <Chip
                           label={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                           color={getRoleColor(user.role)}
                           size="small"
                           variant="filled"
-                          sx={{ mb: 1 }}
+                          sx={{
+                            background: 'linear-gradient(135deg, #006400, #00c853)',
+                            color: 'white',
+                            border: '1px solid rgba(0, 100, 0, 0.5)',
+                          }}
                         />
                         <Chip
                           label={user.isActive ? 'Active' : 'Inactive'}
                           color={user.isActive ? 'success' : 'error'}
                           size="small"
                           variant="filled"
-                          sx={{ ml: 1 }}
+                          sx={{
+                            background: 'linear-gradient(135deg, #006400, #00c853)',
+                            color: 'white',
+                            border: '1px solid rgba(0, 100, 0, 0.5)',
+                          }}
                         />
                       </Box>
                       
@@ -607,20 +772,35 @@ const UsersPage: React.FC = () => {
           )}
 
           {filteredUsers.length === 0 && !loading && (
-            <Paper sx={{ p: 6, textAlign: 'center', mt: 4, borderRadius: 3, border: '2px dashed', borderColor: 'grey.300' }}>
-              <Box display="flex" flexDirection="column" alignItems="center">
-                <Avatar sx={{ bgcolor: 'primary.light', width: 100, height: 100, mb: 2 }}>
-                  <Person sx={{ fontSize: 50, color: 'primary.main' }} />
+            <Paper sx={{ 
+              p: 4, 
+              textAlign: 'center', 
+              mt: 4, 
+              borderRadius: 3, 
+              border: '2px dashed', 
+              borderColor: 'rgba(0, 100, 0, 0.5)',
+              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(10, 10, 10, 0.7))',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 10px 30px rgba(0, 100, 0, 0.25)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, rgba(0, 100, 0, 0.8), transparent)' }} />
+              <Box display="flex" flexDirection="column" alignItems="center" pt={1}>
+                <Avatar sx={{ bgcolor: 'primary.main', width: 100, height: 100, mb: 2, border: '2px solid', borderColor: 'rgba(0, 100, 0, 0.5)', boxShadow: '0 0 25px rgba(0, 100, 0, 0.4)', mt: 2 }}>
+                  <People sx={{ fontSize: 50, color: 'white' }} />
                 </Avatar>
-                <Typography variant="h5" color="textPrimary" fontWeight="bold" gutterBottom>
+                <Typography variant="h4" color="primary.main" fontWeight="bold" gutterBottom sx={{ textShadow: '0 0 15px rgba(0, 100, 0, 0.4)', mt: 1 }}>
                   No users found
                 </Typography>
-                <Typography variant="body1" color="textSecondary" mb={2}>
+                <Typography variant="h6" color="textSecondary" mb={3} sx={{ opacity: 0.8 }}>
                   {searchTerm ? 'Try adjusting your search criteria' : 'No users have been created yet'}
                 </Typography>
                 {!searchTerm && (
                   <Button 
                     variant="contained" 
+                    color="primary"
+                    size="large"
                     startIcon={<Add />} 
                     onClick={() => {
                       setFormData({
@@ -630,11 +810,26 @@ const UsersPage: React.FC = () => {
                         department: '',
                         role: 'student',
                         isActive: true,
+                        dateOfBirth: '',
+                        studentInfo: {
+                          fathers_name: '',
+                          date_of_birth: '',
+                        },
                       });
                       setCurrentUser(null);
                       setEditDialogOpen(true);
                     }}
-                    sx={{ mt: 1 }}
+                    sx={{ 
+                      mt: 1,
+                      px: 4,
+                      py: 1.5,
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      boxShadow: '0 8px 25px rgba(0, 100, 0, 0.4)',
+                      '&:hover': {
+                        boxShadow: '0 10px 30px rgba(0, 100, 0, 0.5)',
+                      }
+                    }}
                   >
                     Add Your First User
                   </Button>
@@ -655,8 +850,8 @@ const UsersPage: React.FC = () => {
         </Box>
 
         {/* Edit User Dialog */}
-        <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>
+        <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { background: 'linear-gradient(135deg, #000000, #0a0a0a)', borderRadius: 3, border: '1px solid rgba(0, 100, 0, 0.4)', boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)' } }}>
+          <DialogTitle sx={{ background: 'linear-gradient(to right, #006400, #388e3c)', color: 'white', fontWeight: 'bold', textShadow: '0 0 8px rgba(255, 255, 255, 0.3)', py: 2 }}>
             {currentUser ? 'Edit User' : 'Add User'}
           </DialogTitle>
           <DialogContent>
@@ -682,12 +877,20 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 fullWidth
               />
-              <TextField
-                label="Department"
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                fullWidth
-              />
+              <FormControl fullWidth>
+                <InputLabel>Department</InputLabel>
+                <Select
+                  value={formData.department}
+                  label="Department"
+                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                >
+                  {departments.map((dept) => (
+                    <MenuItem key={dept._id} value={dept.name}>
+                      {dept.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <FormControl fullWidth required>
                 <InputLabel>Role</InputLabel>
                 <Select
@@ -723,28 +926,36 @@ const UsersPage: React.FC = () => {
               <TextField
                 label="Date of Birth"
                 type="date"
-                value={formData.role === 'student' ? formData.studentInfo?.date_of_birth || '' : formData.dateOfBirth || ''}
+                value={formData.dateOfBirth || ''}
                 onChange={(e) => {
-                  if (formData.role === 'student') {
-                    setFormData({
-                      ...formData,
-                      studentInfo: {
-                        ...formData.studentInfo,
-                        date_of_birth: e.target.value
-                      }
-                    });
-                  } else {
-                    setFormData({
-                      ...formData,
-                      dateOfBirth: e.target.value
-                    });
-                  }
+                  setFormData({
+                    ...formData,
+                    dateOfBirth: e.target.value
+                  });
                 }}
                 fullWidth
                 InputLabelProps={{
                   shrink: true,
                 }}
               />
+              
+              {/* Student-specific fields - only show when role is student */}
+              {formData.role === 'student' && (
+                <>
+                  <TextField
+                    label="Father's Name"
+                    value={formData.studentInfo?.fathers_name || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      studentInfo: {
+                        ...formData.studentInfo,
+                        fathers_name: e.target.value
+                      }
+                    })}
+                    fullWidth
+                  />
+                </>
+              )}
               
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
@@ -760,24 +971,66 @@ const UsersPage: React.FC = () => {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditSubmit} variant="contained">
+            <Button 
+              onClick={() => setEditDialogOpen(false)} 
+              sx={{
+                color: '#a5d6a7',
+                '&:hover': {
+                  color: '#00ff64',
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleEditSubmit} 
+              variant="contained"
+              sx={{
+                background: 'linear-gradient(135deg, #00cc52, #00ff64)',
+                color: 'black',
+                fontWeight: 'bold',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #00ff64, #00cc52)',
+                }
+              }}
+            >
               {currentUser ? 'Update' : 'Create'}
             </Button>
           </DialogActions>
         </Dialog>
 
         {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-          <DialogTitle>Confirm Deletion</DialogTitle>
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} PaperProps={{ sx: { background: 'linear-gradient(135deg, #000000, #0a0a0a)', borderRadius: 3, border: '1px solid rgba(220, 20, 60, 0.4)', boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)' } }}>
+          <DialogTitle sx={{ background: 'linear-gradient(to right, #b71c1c, #d32f2f)', color: 'white', fontWeight: 'bold', textShadow: '0 0 8px rgba(255, 255, 255, 0.3)', py: 2 }}>Confirm Deletion</DialogTitle>
           <DialogContent>
             <Typography>
               Are you sure you want to delete user {currentUser?.profile.name}?
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            <Button 
+              onClick={() => setDeleteDialogOpen(false)}
+              sx={{
+                color: '#a5d6a7',
+                '&:hover': {
+                  color: '#00ff64',
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeleteConfirm} 
+              variant="contained"
+              sx={{
+                background: 'linear-gradient(135deg, #ff4d4d, #ff6666)',
+                color: 'white',
+                fontWeight: 'bold',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #ff6666, #ff4d4d)',
+                }
+              }}
+            >
               Delete
             </Button>
           </DialogActions>

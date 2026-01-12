@@ -7,17 +7,16 @@ router.use(protect);
 router.use(authorize('admin'));
 
 // Import admin controller functions
-import { getAllUsers, getUserById, updateUser, deleteUser, bulkDeleteUsers, getDashboardStats, uploadUsers } from '../controllers/admin.controller';
+import { getAllUsers, getUserById, updateUser, deleteUser, bulkDeleteUsers, getDashboardStats, uploadUsers, createUser, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '../controllers/admin.controller';
 
 // Admin dashboard
 router.get('/dashboard', getDashboardStats);
+router.get('/dashboard/stats', getDashboardStats);
 
 // User management routes
 router.route('/users')
   .get(getAllUsers)
-  .post((req, res) => {
-    res.status(501).json({ success: false, message: 'Direct user creation not allowed. Use CSV upload.' });
-  });
+  .post(createUser);
 
 // Specific bulk delete route needs to come before the parameterized route
 router.delete('/users/bulk', bulkDeleteUsers);
@@ -29,5 +28,14 @@ router.route('/users/:id')
 
 // Bulk user upload route
 router.post('/users/upload', uploadUsers);
+
+// Department management routes
+router.route('/departments')
+  .get(getAllDepartments)
+  .post(createDepartment);
+
+router.route('/departments/:id')
+  .put(updateDepartment)
+  .delete(deleteDepartment);
 
 export default router;
