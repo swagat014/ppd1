@@ -30,6 +30,7 @@ import GradesPage from './pages/teacher/grades';
 import TeacherAnalyticsPage from './pages/teacher/analytics';
 import SchedulePage from './pages/teacher/schedule';
 import ResourcesPage from './pages/teacher/resources';
+import CoreSubjectsPage from './pages/teacher/core-subjects';
 
 const theme = createTheme({
   palette: {
@@ -421,6 +422,14 @@ function App() {
             element={
                 <PrivateRoute allowedRoles={['teacher']}>
                   <ResourcesPage />
+                </PrivateRoute>
+            }
+          />
+          <Route
+            path="/teacher/core-subjects"
+            element={
+                <PrivateRoute allowedRoles={['teacher']}>
+                  <CoreSubjectsPage />
                 </PrivateRoute>
             }
           />

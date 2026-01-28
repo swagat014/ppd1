@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Profile from '../../components/common/Profile';
 import {
   Box,
   Drawer,
@@ -52,6 +53,7 @@ const menuItems: MenuItem[] = [
   { text: 'Analytics', icon: <BarChart />, path: '/teacher/analytics' },
   { text: 'Schedule', icon: <Event />, path: '/teacher/schedule' },
   { text: 'Resources', icon: <LocalLibrary />, path: '/teacher/resources' },
+  { text: 'Core Subjects', icon: <School />, path: '/teacher/core-subjects' },
 ];
 
 interface TeacherLayoutProps {
@@ -61,6 +63,7 @@ interface TeacherLayoutProps {
 const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -75,6 +78,11 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
 
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleOpenProfile = () => {
+    setAnchorEl(null);
+    setProfileOpen(true);
   };
 
   const handleLogout = () => {
@@ -160,13 +168,14 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
             open={Boolean(anchorEl)}
             onClose={handleProfileMenuClose}
           >
-            <MenuItem onClick={handleProfileMenuClose}>
+            <MenuItem onClick={handleOpenProfile}>
               <Person sx={{ mr: 2 }} /> Profile
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <Logout sx={{ mr: 2 }} /> Logout
             </MenuItem>
           </Menu>
+          <Profile open={profileOpen} onClose={() => setProfileOpen(false)} />
         </Toolbar>
       </AppBar>
       <Box

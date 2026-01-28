@@ -10,48 +10,124 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Tabs,
+  Tab,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  IconButton,
+  Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
-import { Book, CheckCircle, PlayCircle } from '@mui/icons-material';
+import { Book, CheckCircle, PlayCircle, PictureAsPdf, Download, School } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface Subject {
-  name: string;
-  score: number;
-  completedModules: number;
-  totalModules: number;
-  lastAccessed: Date | null;
+interface CoreSubjectNote {
+  _id: string;
+  title: string;
+  description: string;
+  fileName: string;
+  fileSize: number;
+  subject: string;
+  semester: number;
+  academicYear: string;
+  downloads: number;
+  createdAt: string;
+  uploadedBy: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 const CoreSubjects: React.FC = () => {
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [notes, setNotes] = useState<CoreSubjectNote[]>([]);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSubjects();
   }, []);
 
+  useEffect(() => {
+    // Load first subject notes by default when subjects are loaded
+    if (subjects.length > 0) {
+      fetchNotesBySubject(subjects[0]);
+    }
+  }, [subjects]);
+
   const fetchSubjects = async () => {
-    setLoading(true);
+    if (!user?.profile?.department) return;
+    
     try {
-      const response = await axios.get('/student/core-subjects');
+      const response = await axios.get(`/core-subjects/department/${user.profile?.department}/subjects`);
       setSubjects(response.data.data);
     } catch (error) {
       console.error('Failed to fetch subjects:', error);
+      showSnackbar('Failed to load subjects', 'error');
+    }
+  };
+
+
+
+  const fetchNotesBySubject = async (subject: string) => {
+    if (!user?.profile?.department) return;
+    
+    setLoading(true);
+    try {
+      const response = await axios.get(`/core-subjects/department/${user.profile?.department}/subject/${subject}`);
+      setNotes(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch notes by subject:', error);
+      showSnackbar('Failed to load notes', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'success';
-    if (score >= 60) return 'warning';
-    return 'error';
+  const handleDownload = async (id: string, fileName: string) => {
+    try {
+      const response = await axios.get(`/core-subjects/${id}/download`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      showSnackbar('Note downloaded successfully', 'success');
+    } catch (error) {
+      console.error('Error downloading note:', error);
+      showSnackbar('Failed to download note', 'error');
+    }
   };
 
-  const getProgress = (completed: number, total: number) => {
-    return total > 0 ? (completed / total) * 100 : 0;
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleSubjectChange = (subject: string) => {
+    fetchNotesBySubject(subject);
   };
 
   if (loading) {
@@ -68,91 +144,103 @@ const CoreSubjects: React.FC = () => {
         Core Subjects
       </Typography>
       <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
-        Study core computer science subjects for placement preparation
+        Access study materials and PDF notes for {user?.profile?.department} department
       </Typography>
 
+      <Tabs 
+        value={0} // Always show the 'By Subject' view
+        sx={{ mb: 3 }}
+      >
+        <Tab label="By Subject" icon={<Book />} />
+      </Tabs>
+
       <Grid container spacing={3}>
-        {subjects.map((subject, idx) => (
-          <Grid item xs={12} sm={6} md={4} key={idx}>
-            <Card
-              elevation={2}
-              sx={{
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                '&:hover': {
-                  elevation: 4,
-                  transform: 'translateY(-4px)',
-                },
-              }}
-              onClick={() => navigate(`/student/core-subjects/${encodeURIComponent(subject.name)}`)}
-            >
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={2} mb={2}>
-                  <Book color="primary" />
-                  <Typography variant="h6" fontWeight="bold" sx={{ flex: 1 }}>
-                    {subject.name}
-                  </Typography>
-                </Box>
-
-                <Box mb={2}>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      Progress
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {subject.completedModules} / {subject.totalModules} modules
-                    </Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={getProgress(subject.completedModules, subject.totalModules)}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                </Box>
-
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Score
-                    </Typography>
-                    <Chip
-                      label={`${subject.score}%`}
-                      color={getScoreColor(subject.score) as 'success' | 'warning' | 'error'}
-                      size="small"
-                      sx={{ ml: 1 }}
-                    />
-                  </Box>
-                  {subject.lastAccessed && (
-                    <Typography variant="caption" color="text.secondary">
-                      Last accessed: {new Date(subject.lastAccessed).toLocaleDateString()}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<PlayCircle />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/student/core-subjects/${encodeURIComponent(subject.name)}`);
-                  }}
+        <Grid item xs={12} md={3}>
+          <Paper elevation={2}>
+            <Typography variant="h6" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              Subjects
+            </Typography>
+            <List>
+              {subjects.map((subject, index) => (
+                <ListItem 
+                  button 
+                  key={index}
+                  onClick={() => handleSubjectChange(subject)}
+                  selected={notes.length > 0 && notes[0]?.subject === subject}
                 >
-                  Study
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  <ListItemIcon>
+                    <Book color="primary" />
+                  </ListItemIcon>
+                  <ListItemText primary={subject} />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={9}>
+          {notes.length > 0 ? (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                {notes[0]?.subject} Notes
+              </Typography>
+              {notes.map((note) => (
+                <Card key={note._id} elevation={2} sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={2} mb={1}>
+                      <PictureAsPdf color="error" />
+                      <Typography variant="h6" fontWeight="bold" sx={{ flex: 1 }}>
+                        {note.title}
+                      </Typography>
+                      <Tooltip title="Download">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDownload(note._id, note.fileName)}
+                          sx={{ color: 'primary.main' }}
+                        >
+                          <Download />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      {note.description}
+                    </Typography>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mt={1}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Semester {note.semester} | Size: {formatFileSize(note.fileSize)} | Downloads: {note.downloads}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Uploaded by: {note.uploadedBy.firstName} {note.uploadedBy.lastName}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          ) : (
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary">
+                No notes available for this subject.
+              </Typography>
+            </Paper>
+          )}
+        </Grid>
       </Grid>
 
-      {subjects.length === 0 && (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
-            No subjects available. Content coming soon!
-          </Typography>
-        </Paper>
-      )}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={() => setSnackbar({...snackbar, open: false})}
+      >
+        <Alert 
+          onClose={() => setSnackbar({...snackbar, open: false})} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

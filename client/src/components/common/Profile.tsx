@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -16,8 +16,12 @@ import {
   Select,
   MenuItem,
   Divider,
+  Avatar,
+  IconButton,
+  CircularProgress,
+  Tooltip,
 } from '@mui/material';
-import { Edit, Close, Save, Cancel, People, School, Work, Business, LocalLibrary } from '@mui/icons-material';
+import { Edit, Close, Save, Cancel, People, School, Work, Business, LocalLibrary, CameraAlt } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
@@ -82,6 +86,9 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
   const [editingAcademic, setEditingAcademic] = useState(false);
   const [collegeName, setCollegeName] = useState('');
   const [tempProfile, setTempProfile] = useState<any>(null);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEditProfile = () => {
     setTempProfile({ ...profile });
@@ -93,7 +100,7 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
 
   const handleSaveProfile = async () => {
     try {
-      await axios.post('/api/profile', tempProfile);
+      await axios.post('/profile', tempProfile);
       setProfile(tempProfile);
       setEditing(false);
       toast.success('Profile updated successfully');
@@ -110,6 +117,55 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
     }
   };
 
+  const handleProfilePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('File size exceeds 2MB limit');
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('profilePic', file);
+      
+      try {
+        setUploading(true);
+        const response = await axios.post('/profile/upload-picture', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        setProfilePic(response.data.data.profilePic);
+        toast.success(response.data.message);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Failed to upload profile picture');
+      } finally {
+        setUploading(false);
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    }
+  };
+
+  const getRoleDisplay = (): string => {
+    if (profile?.role) {
+      const role = profile.role;
+      return role.charAt(0).toUpperCase() + role.slice(1);
+    }
+    return 'User';
+  };
+
   useEffect(() => {
     if (open) {
       fetchProfile();
@@ -119,8 +175,18 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/profile');
+      const response = await axios.get('/profile');
       setProfile(response.data.data);
+      
+      // Set profile picture based on role
+      if (response.data.data.studentInfo?.profilePic) {
+        setProfilePic(response.data.data.studentInfo.profilePic);
+      } else if (response.data.data.employeeInfo?.profilePic) {
+        setProfilePic(response.data.data.employeeInfo.profilePic);
+      } else if (response.data.data.adminInfo?.profilePic) {
+        setProfilePic(response.data.data.adminInfo.profilePic);
+      }
+      
       if (response.data.data.adminInfo) {
         setCollegeName(response.data.data.adminInfo.collegeName);
       }
@@ -150,6 +216,61 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
       
       <DialogContent dividers>
         <Grid container spacing={3}>
+          {/* Profile Picture Section */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Box display="flex" justifyContent="center" alignItems="center" flexDirection="column">
+                  <Box position="relative" display="inline-flex" justifyContent="center">
+                    <Avatar 
+                      src={profilePic ? `${process.env.REACT_APP_API_URL || window.location.origin}${profilePic}` : undefined}
+                      sx={{ 
+                        width: 120, 
+                        height: 120, 
+                        fontSize: 40,
+                        bgcolor: 'secondary.main'
+                      }}
+                    >
+                      {!profilePic && profile?.user?.profile.firstName?.charAt(0)}
+                    </Avatar>
+                    <Tooltip title="Change Profile Picture">
+                      <IconButton
+                        onClick={() => fileInputRef.current?.click()}
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          bottom: 0,
+                          right: 0,
+                          backgroundColor: 'white',
+                          borderRadius: '50%',
+                          border: '2px solid white',
+                          '&:hover': {
+                            backgroundColor: 'grey.200',
+                          },
+                        }}
+                      >
+                        {uploading ? <CircularProgress size={20} /> : <CameraAlt fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  <Typography variant="h6" mt={2} textAlign="center">
+                    {profile?.user?.profile.firstName} {profile?.user?.profile.lastName}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" textAlign="center">
+                    {getRoleDisplay()}
+                  </Typography>
+                </Box>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleProfilePicChange}
+                  style={{ display: 'none' }}
+                  accept="image/*"
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+          
           {/* Basic User Info */}
           <Grid item xs={12}>
             <Card>

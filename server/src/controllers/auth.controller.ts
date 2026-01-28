@@ -2,6 +2,7 @@ import { Response } from 'express';
 import * as jwt from 'jsonwebtoken';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
+import Profile from '../models/Profile.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 
@@ -294,6 +295,17 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
+    }
+    
+    // Update the corresponding profile to synchronize department
+    const profile = await Profile.findOne({ userId: user._id });
+    if (profile && updates.department) {
+      if (profile.role === 'student' && profile.studentInfo) {
+        profile.studentInfo.department = updates.department;
+      } else if ((profile.role === 'teacher' || profile.role === 'tpo') && profile.employeeInfo) {
+        profile.employeeInfo.department = updates.department;
+      }
+      await profile.save();
     }
 
     res.status(200).json({

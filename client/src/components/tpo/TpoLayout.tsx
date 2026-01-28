@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Profile from '../../components/common/Profile';
 import {
   Box,
   Drawer,
@@ -56,6 +57,7 @@ interface TpoLayoutProps {
 const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -70,6 +72,11 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
 
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleOpenProfile = () => {
+    setAnchorEl(null);
+    setProfileOpen(true);
   };
 
   const handleLogout = () => {
@@ -155,13 +162,14 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
             open={Boolean(anchorEl)}
             onClose={handleProfileMenuClose}
           >
-            <MenuItem onClick={handleProfileMenuClose}>
+            <MenuItem onClick={handleOpenProfile}>
               <Person sx={{ mr: 2 }} /> Profile
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <Logout sx={{ mr: 2 }} /> Logout
             </MenuItem>
           </Menu>
+          <Profile open={profileOpen} onClose={() => setProfileOpen(false)} />
         </Toolbar>
       </AppBar>
       <Box

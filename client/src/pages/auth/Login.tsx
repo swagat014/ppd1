@@ -315,7 +315,7 @@ const Login: React.FC = () => {
                     </InputAdornment>
                   ),
                 }}
-                helperText={role === 'student' ? 'Students: Use your date of birth as password (YYYY-MM-DD format)' : ''}
+                // helperText={role === 'student' ? 'Students: Use your date of birth as password (YYYY-MM-DD format)' : ''}
                 FormHelperTextProps={{
                   sx: {
                     color: '#a7f3d0',
