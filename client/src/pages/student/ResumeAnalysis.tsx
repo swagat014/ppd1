@@ -90,6 +90,7 @@ const ResumeAnalysis: React.FC = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [resume, setResume] = useState<any>(null);
   const [analysis, setAnalysis] = useState<any>(null);
+  const [jobDescription, setJobDescription] = useState<string>('');
   const [activeTab, setActiveTab] = useState(0);
   
   const [resumeBuilderData, setResumeBuilderData] = useState<ResumeBuilderData>({
@@ -173,88 +174,24 @@ const ResumeAnalysis: React.FC = () => {
       return;
     }
 
+    if (!jobDescription.trim()) {
+      toast.error('Please paste a job description for accurate ATS matching');
+      return;
+    }
+
     setAnalyzing(true);
-    
-    // Simulate analysis without OpenAI
     try {
-      // Mock analysis data based on common ATS criteria
-      const mockAnalysis = {
-        atsScore: calculateATSScore(),
-        analysis: {
-          keywords: getCommonKeywords(),
-          missingKeywords: getMissingKeywords(),
-          suggestions: getImprovementSuggestions(),
-          readabilityScore: calculateReadabilityScore(),
-        },
-      };
-      
-      setAnalysis(mockAnalysis);
+      const response = await axios.post('/student/resume/analyze', {
+        jobDescription,
+      });
+
+      setAnalysis(response.data.data);
       toast.success('Resume analyzed successfully!');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to analyze resume');
+      toast.error(error.response?.data?.message || 'Failed to analyze resume');
     } finally {
       setAnalyzing(false);
     }
-  };
-  
-  // Calculate ATS score based on common criteria
-  const calculateATSScore = (): number => {
-    // Generate a realistic score based on common ATS factors
-    let score = 70; // Base score
-    
-    // Factors that affect ATS score
-    // Using dummy values since we don't have actual resume content
-    const hasGoodFormat = true; // Assume good format
-    const hasKeywords = true; // Assume some keywords present
-    const hasEducation = true; // Assume education present
-    const hasExperience = true; // Assume experience present
-    
-    if (hasGoodFormat) score += 15;
-    if (hasKeywords) score += 10;
-    if (hasEducation) score += 10;
-    if (hasExperience) score += 15;
-    
-    // Cap at 100
-    return Math.min(100, score);
-  };
-  
-  // Get common keywords that ATS systems look for
-  const getCommonKeywords = (): string[] => {
-    return [
-      'JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'Java',
-      'CSS', 'HTML', 'Git', 'AWS', 'Docker', 'Kubernetes',
-      'Machine Learning', 'Data Structures', 'Algorithms', 'RESTful APIs',
-      'Agile', 'Scrum', 'Testing', 'CI/CD', 'Linux', 'MySQL'
-    ];
-  };
-  
-  // Get missing keywords based on common tech roles
-  const getMissingKeywords = (): string[] => {
-    return [
-      'TypeScript', 'Redux', 'Express', 'MongoDB', 'PostgreSQL',
-      'Jest', 'Cypress', 'TDD', 'Microservices', 'GraphQL',
-      'Vue.js', 'Angular', 'Next.js', 'Tailwind CSS', 'SASS'
-    ];
-  };
-  
-  // Get improvement suggestions
-  const getImprovementSuggestions = (): string[] => {
-    return [
-      'Include more technical keywords related to your target role',
-      'Quantify achievements with specific metrics and numbers',
-      'Use action verbs at the beginning of bullet points',
-      'Ensure consistent formatting and font styles',
-      'Include relevant certifications',
-      'Add specific technologies you have worked with',
-      'Optimize the summary/objective section with relevant keywords',
-      'Include projects with detailed descriptions'
-    ];
-  };
-  
-  // Calculate readability score
-  const calculateReadabilityScore = (): number => {
-    // Base readability score
-    return Math.floor(Math.random() * 20) + 70; // Random score between 70-90
   };
 
   // Generate resume as PDF
@@ -597,8 +534,30 @@ const ResumeAnalysis: React.FC = () => {
             </Paper>
           </Grid>
 
-          {/* Analysis Results */}
+          {/* Job Description Input */}
           <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom fontWeight="bold">
+                Job Description (JD)
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Paste the target job description here. The analyzer will compute ATS match %, missing keywords, and tailored suggestions.
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                minRows={8}
+                maxRows={16}
+                placeholder="Paste the JD from the company here..."
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                variant="outlined"
+              />
+            </Paper>
+          </Grid>
+
+          {/* Analysis Results */}
+          <Grid item xs={12}>
             {analysis && (
               <Paper elevation={3} sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
@@ -612,109 +571,148 @@ const ResumeAnalysis: React.FC = () => {
                       ATS Compatibility Score
                     </Typography>
                     <Chip
-                      label={`${analysis.atsScore}%`}
-                      color={getScoreColor(analysis.atsScore) as 'success' | 'warning' | 'error'}
+                      label={`${analysis.atsScore || 0}%`}
+                      color={getScoreColor(analysis.atsScore || 0) as 'success' | 'warning' | 'error'}
                       size="small"
                     />
                   </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={analysis.atsScore}
-                    color={getScoreColor(analysis.atsScore) as 'success' | 'warning' | 'error'}
+                    value={analysis.atsScore || 0}
+                    color={getScoreColor(analysis.atsScore || 0) as 'success' | 'warning' | 'error'}
                     sx={{ height: 10, borderRadius: 5 }}
                   />
                 </Box>
 
-                {/* Selection Probability */}
+                {/* JD Match Percentage */}
                 <Box sx={{ mt: 3 }}>
-                  {analysis.atsScore !== undefined && (
+                  {analysis.jdMatchPercentage !== undefined && (
                     <>
                       <Box display="flex" justifyContent="space-between" mb={1}>
                         <Typography variant="body1" fontWeight="bold">
-                          Selection Probability
+                          Job Description Match
                         </Typography>
                         <Chip
-                          label={`${getSelectionProbability(analysis.atsScore).probability}%`}
-                          color={getScoreColor(getSelectionProbability(analysis.atsScore).probability) as 'success' | 'warning' | 'error'}
+                          label={`${analysis.jdMatchPercentage}%`}
+                          color={getScoreColor(analysis.jdMatchPercentage) as 'success' | 'warning' | 'error'}
                           size="small"
                         />
                       </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {getSelectionProbability(analysis.atsScore).description}
+                        Percentage of important JD keywords that your resume covers.
                       </Typography>
                       <LinearProgress
                         variant="determinate"
-                        value={getSelectionProbability(analysis.atsScore).probability}
-                        color={getScoreColor(getSelectionProbability(analysis.atsScore).probability) as 'success' | 'warning' | 'error'}
+                        value={analysis.jdMatchPercentage}
+                        color={getScoreColor(analysis.jdMatchPercentage) as 'success' | 'warning' | 'error'}
                         sx={{ height: 10, borderRadius: 5 }}
                       />
                     </>
                   )}
                 </Box>
 
-                {/* Readability Score */}
-                <Box sx={{ mt: 3 }}>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography variant="body1" fontWeight="bold">
-                      Readability Score
-                    </Typography>
-                    <Chip
-                      label={`${analysis.analysis.readabilityScore}%`}
-                      color={getScoreColor(analysis.analysis.readabilityScore) as 'success' | 'warning' | 'error'}
-                      size="small"
-                    />
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={analysis.analysis.readabilityScore}
-                    color={getScoreColor(analysis.analysis.readabilityScore) as 'success' | 'warning' | 'error'}
-                    sx={{ height: 10, borderRadius: 5 }}
-                  />
-                </Box>
-
-                {/* Keywords Found */}
-                {analysis.analysis.keywords && analysis.analysis.keywords.length > 0 && (
+                {/* Matched Skills / Keywords */}
+                {analysis.matchedSkills && analysis.matchedSkills.length > 0 && (
                   <Box sx={{ mt: 3 }}>
                     <Typography variant="body1" fontWeight="bold" gutterBottom>
-                      Keywords Found
+                      Matched Skills & Keywords
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {analysis.analysis.keywords.slice(0, 10).map((keyword: string, index: number) => (
+                      {analysis.matchedSkills.slice(0, 25).map((keyword: string, index: number) => (
                         <Chip key={index} label={keyword} size="small" color="primary" variant="outlined" />
                       ))}
                     </Box>
                   </Box>
                 )}
 
-                {/* Missing Keywords */}
-                {analysis.analysis.missingKeywords && analysis.analysis.missingKeywords.length > 0 && (
+                {/* Missing Skills / Keywords */}
+                {analysis.missingSkills && analysis.missingSkills.length > 0 && (
                   <Box sx={{ mt: 3 }}>
                     <Typography variant="body1" fontWeight="bold" gutterBottom color="warning.main">
                       Missing Keywords (Add These)
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {analysis.analysis.missingKeywords.slice(0, 10).map((keyword: string, index: number) => (
+                      {analysis.missingSkills.slice(0, 25).map((keyword: string, index: number) => (
                         <Chip key={index} label={keyword} size="small" color="warning" variant="outlined" />
                       ))}
                     </Box>
                   </Box>
                 )}
+
+                {/* Sections Strength */}
+                <Grid container spacing={2} sx={{ mt: 3 }}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body1" fontWeight="bold" gutterBottom>
+                      Strong Sections
+                    </Typography>
+                    {analysis.strongSections && analysis.strongSections.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {analysis.strongSections.map((section: string, index: number) => (
+                          <Chip key={index} label={section.toUpperCase()} size="small" color="success" />
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No clearly strong sections detected yet.
+                      </Typography>
+                    )}
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body1" fontWeight="bold" gutterBottom>
+                      Weak / Missing Sections
+                    </Typography>
+                    {analysis.weakSections && analysis.weakSections.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {analysis.weakSections.map((section: string, index: number) => (
+                          <Chip key={index} label={section.toUpperCase()} size="small" color="error" />
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        All core sections look reasonably present.
+                      </Typography>
+                    )}
+                  </Grid>
+                </Grid>
               </Paper>
             )}
           </Grid>
 
           {/* Suggestions */}
-          {analysis && analysis.analysis.suggestions && (
+          {analysis && analysis.suggestions && (
             <Grid item xs={12}>
               <Paper elevation={3} sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
                   Improvement Suggestions
                 </Typography>
                 <List>
-                  {analysis.analysis.suggestions.map((suggestion: string, index: number) => (
+                  {analysis.suggestions.map((suggestion: string, index: number) => (
                     <ListItem key={index}>
                       <ListItemText
                         primary={suggestion}
+                        primaryTypographyProps={{
+                          variant: 'body1',
+                        }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Paper>
+            </Grid>
+          )}
+
+          {/* Warnings */}
+          {analysis && analysis.warnings && analysis.warnings.length > 0 && (
+            <Grid item xs={12}>
+              <Paper elevation={3} sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom fontWeight="bold" color="warning.main">
+                  ATS Warnings
+                </Typography>
+                <List>
+                  {analysis.warnings.map((warning: string, index: number) => (
+                    <ListItem key={index}>
+                      <ListItemText
+                        primary={warning}
                         primaryTypographyProps={{
                           variant: 'body1',
                         }}

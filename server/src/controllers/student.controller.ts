@@ -7,14 +7,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import pdfParse from 'pdf-parse';
-import OpenAI from 'openai';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const mammoth = require('mammoth');
+import ResumeAnalysis from '../models/ResumeAnalysis.model';
+import { analyzeResumeText } from '../utils/resumeAnalysis.util';
 
-const openai: OpenAI | null = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY not set — AI features are disabled.');
-}
+const openai: null = null;
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -140,6 +138,8 @@ export const uploadResume = async (req: AuthRequest, res: Response): Promise<voi
 // @access  Private/Student
 export const analyzeResume = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const { jobDescription } = req.body as { jobDescription?: string };
+
     const student = await Student.findOne({ userId: req.user?._id });
 
     if (!student || !student.resume.fileUrl) {
@@ -147,61 +147,65 @@ export const analyzeResume = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Read PDF file
     const filePath = path.join(process.cwd(), student.resume.fileUrl);
     const dataBuffer = fs.readFileSync(filePath);
-    const pdfData = await pdfParse(dataBuffer);
-    const resumeText = pdfData.text;
+    const ext = path.extname(filePath).toLowerCase();
 
-    // Analyze with OpenAI
-    const analysisPrompt = `Analyze the following resume for ATS (Applicant Tracking System) compatibility and provide:
-1. ATS-friendly score (0-100)
-2. Important keywords found
-3. Missing keywords that should be included
-4. Specific suggestions for improvement
-5. Readability score (0-100)
-
-Resume text:
-${resumeText}
-
-Provide the response in JSON format with the following structure:
-{
-  "atsScore": number,
-  "keywords": ["keyword1", "keyword2", ...],
-  "missingKeywords": ["keyword1", "keyword2", ...],
-  "suggestions": ["suggestion1", "suggestion2", ...],
-  "readabilityScore": number
-}`;
-
-    if (!openai) {
-      res.status(503).json({ success: false, message: 'OpenAI API key not configured. Resume analysis is unavailable.' });
+    let resumeText = '';
+    if (ext === '.pdf') {
+      const pdfData = await pdfParse(dataBuffer);
+      resumeText = pdfData.text || '';
+    } else if (ext === '.docx') {
+      const result = await mammoth.extractRawText({ buffer: dataBuffer });
+      resumeText = result.value || '';
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Unsupported resume format for analysis. Please upload a PDF or DOCX file.',
+      });
       return;
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [{ role: 'user', content: analysisPrompt }],
-      response_format: { type: 'json_object' },
+    const analysis = analyzeResumeText({
+      resumeText,
+      jobDescription,
     });
 
-    const analysis = JSON.parse(completion.choices[0].message.content || '{}');
-
-    // Update student resume analysis
     student.resume.atsScore = analysis.atsScore || 0;
     student.resume.analysis = {
-      keywords: analysis.keywords || [],
-      missingKeywords: analysis.missingKeywords || [],
+      keywords: analysis.matchedSkills || [],
+      missingKeywords: analysis.missingSkills || [],
       suggestions: analysis.suggestions || [],
-      readabilityScore: analysis.readabilityScore || 0,
+      readabilityScore: analysis.jdMatchPercentage || 0,
     };
 
     await student.save();
 
+    await ResumeAnalysis.create({
+      userId: req.user?._id,
+      resumeName: student.resume.fileName,
+      atsScore: analysis.atsScore,
+      jdMatchPercentage: analysis.jdMatchPercentage,
+      matchedSkills: analysis.matchedSkills,
+      missingSkills: analysis.missingSkills,
+      weakSections: analysis.weakSections,
+      strongSections: analysis.strongSections,
+      suggestions: analysis.suggestions,
+      warnings: analysis.warnings,
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        atsScore: student.resume.atsScore,
-        analysis: student.resume.analysis,
+        atsScore: analysis.atsScore,
+        jdMatchPercentage: analysis.jdMatchPercentage,
+        matchedSkills: analysis.matchedSkills,
+        missingSkills: analysis.missingSkills,
+        weakSections: analysis.weakSections,
+        strongSections: analysis.strongSections,
+        suggestions: analysis.suggestions,
+        warnings: analysis.warnings,
+        scoreBreakdown: analysis.scoreBreakdown,
       },
     });
   } catch (error: any) {
@@ -263,41 +267,13 @@ export const analyzeReadiness = async (req: AuthRequest, res: Response): Promise
       skillsScore * 0.15
     );
 
-    // Generate recommendations
+    // Generate recommendations (rule-based, no external AI)
     const recommendations: string[] = [];
     if (technicalScore < 60) recommendations.push('Focus on solving more DSA problems. Aim for at least 100 solved problems.');
     if (aptitudeScore < 60) recommendations.push('Practice more aptitude tests to improve your quantitative and logical reasoning skills.');
     if (communicationScore < 60) recommendations.push('Work on improving your English communication skills through practice and mock interviews.');
     if (projectsScore < 60) recommendations.push('Build more projects to showcase your technical skills and experience.');
     if (skillsScore < 60) recommendations.push('Learn new technologies and frameworks relevant to your target companies.');
-
-    // Use AI for detailed recommendations
-    const prompt = `Based on the following student data, provide detailed recommendations for placement preparation:
-- Technical Score: ${technicalScore}
-- Aptitude Score: ${aptitudeScore}
-- Communication Score: ${communicationScore}
-- Projects: ${student.projects.length}
-- Skills: ${student.skills.technical.length} technical, ${student.skills.soft.length} soft
-
-Provide 5-7 specific, actionable recommendations in JSON format:
-{
-  "recommendations": ["recommendation1", "recommendation2", ...]
-}`;
-
-    let aiRecommendations: string[] = [];
-    try {
-      if (openai) {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' },
-        });
-        const aiResponse = JSON.parse(completion.choices[0].message.content || '{}');
-        aiRecommendations = aiResponse.recommendations || [];
-      }
-    } catch (error) {
-      console.error('AI recommendation error:', error);
-    }
 
     student.readiness = {
       overallScore: Math.round(overallScore),
@@ -307,7 +283,7 @@ Provide 5-7 specific, actionable recommendations in JSON format:
       projectsScore: Math.round(projectsScore),
       skillsScore: Math.round(skillsScore),
       lastAnalyzed: new Date(),
-      recommendations: [...recommendations, ...aiRecommendations].slice(0, 10),
+      recommendations: recommendations.slice(0, 10),
     };
 
     await student.save();
@@ -907,60 +883,23 @@ export const getRecommendedProjects = async (req: AuthRequest, res: Response): P
       return;
     }
 
-    // Generate project recommendations based on student profile
-    const prompt = `Based on the following student profile, suggest 5 relevant projects:
-- Current Skills: ${student.skills.technical.join(', ')}
-- Current Projects: ${student.projects.map((p) => p.name).join(', ')}
-- Readiness Score: ${student.readiness.overallScore}
-
-Provide project suggestions in JSON format:
-{
-  "projects": [
-    {
-      "name": "Project Name",
-      "description": "Brief description",
-      "technologies": ["tech1", "tech2"],
-      "difficulty": "beginner|intermediate|advanced",
-      "whyRelevant": "Why this project is relevant"
-    }
-  ]
-}`;
-
-    let recommendedProjects: any[] = [];
-    try {
-      if (openai) {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' },
-        });
-        const response = JSON.parse(completion.choices[0].message.content || '{}');
-        recommendedProjects = response.projects || [];
-      } else {
-        // Fallback recommendations when OpenAI is not configured
-        recommendedProjects = [
-          {
-            name: 'E-Commerce Platform',
-            description: 'Build a full-stack e-commerce application',
-            technologies: ['React', 'Node.js', 'MongoDB'],
-            difficulty: 'intermediate',
-            whyRelevant: 'Shows full-stack development skills',
-          },
-        ];
-      }
-    } catch (error) {
-      console.error('AI recommendation error:', error);
-      // Fallback recommendations
-      recommendedProjects = [
-        {
-          name: 'E-Commerce Platform',
-          description: 'Build a full-stack e-commerce application',
-          technologies: ['React', 'Node.js', 'MongoDB'],
-          difficulty: 'intermediate',
-          whyRelevant: 'Shows full-stack development skills',
-        },
-      ];
-    }
+    // Rule-based project recommendations (no external AI)
+    const recommendedProjects: any[] = [
+      {
+        name: 'Placement Analytics Dashboard',
+        description: 'Build a dashboard showing student placement metrics, company-wise stats, and practice progress.',
+        technologies: ['React', 'Node.js', 'MongoDB'],
+        difficulty: 'intermediate',
+        whyRelevant: 'Demonstrates full-stack skills and data visualization aligned with placement platforms.',
+      },
+      {
+        name: 'Online Coding Practice Platform',
+        description: 'Create a DSA practice platform with problem sets, submissions, leaderboards, and basic analytics.',
+        technologies: ['React', 'Node.js', 'MongoDB'],
+        difficulty: 'advanced',
+        whyRelevant: 'Matches expectations of product-based companies around algorithms and systems.',
+      },
+    ];
 
     res.status(200).json({
       success: true,
@@ -986,40 +925,23 @@ export const getRecommendedSkills = async (req: AuthRequest, res: Response): Pro
       return;
     }
 
-    // Generate skill recommendations
-    const prompt = `Based on the following student profile, suggest 5-7 skills they should learn:
-- Current Technical Skills: ${student.skills.technical.join(', ')}
-- Current Soft Skills: ${student.skills.soft.join(', ')}
-- Readiness Score: ${student.readiness.overallScore}
-- Career Goals: Software Development
-
-Provide skill suggestions in JSON format:
-{
-  "skills": [
-    {
-      "name": "Skill Name",
-      "type": "technical|soft",
-      "priority": "high|medium|low",
-      "reason": "Why this skill is important",
-      "resources": ["resource1", "resource2"]
-    }
-  ]
-}`;
-
-    let recommendedSkills: any[] = [];
-    try {
-      if (openai) {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' },
-        });
-        const response = JSON.parse(completion.choices[0].message.content || '{}');
-        recommendedSkills = response.skills || [];
-      }
-    } catch (error) {
-      console.error('AI recommendation error:', error);
-    }
+    // Rule-based skill recommendations (no external AI)
+    const recommendedSkills: any[] = [
+      {
+        name: 'System Design Fundamentals',
+        type: 'technical',
+        priority: 'high',
+        reason: 'Important for backend and full-stack roles and common in product-based interviews.',
+        resources: [],
+      },
+      {
+        name: 'Behavioral Interviewing',
+        type: 'soft',
+        priority: 'medium',
+        reason: 'Helps you perform better in HR and behavioral rounds with structured answers (STAR).',
+        resources: [],
+      },
+    ];
 
     res.status(200).json({
       success: true,
