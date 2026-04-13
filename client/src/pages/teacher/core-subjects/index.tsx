@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAuth } from '../../../contexts/AuthContext';
+import { SkeletonDashboard } from '../../../components/common/SkeletonLoading';
 
 interface CoreSubjectNote {
   _id: string;
@@ -237,11 +238,7 @@ const CoreSubjectsPage: React.FC = () => {
   if (loading) {
     return (
       <TeacherLayout>
-        <Container maxWidth="lg">
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-            <CircularProgress />
-          </Box>
-        </Container>
+        <SkeletonDashboard type="teacher" />
       </TeacherLayout>
     );
   }

@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { School, BusinessCenter, AdminPanelSettings, Person, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -48,7 +49,11 @@ const Login: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
 
   const { login, isAuthenticated, user } = useAuth();
+  const { settings } = useSettings();
   const navigate = useNavigate();
+
+  const siteName = settings?.siteName || 'ZestPrep';
+  const primaryColor = settings?.appearance?.primaryColor || '#10b981';
 
   // Generate snow-like dots with different properties
   const snowDots = useMemo(() => 
@@ -203,46 +208,56 @@ const Login: React.FC = () => {
         >
           <Box
             sx={{
-              background: 'linear-gradient(135deg, rgba(4, 20, 10, 0.6) 0%, rgba(6, 25, 15, 0.8) 100%)',
-              color: '#6ee7b7',
-              p: 4,
-              textAlign: 'center',
-              borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Header glow */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '200%',
-                height: '200%',
-                background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%)',
-                pointerEvents: 'none',
-              }}
-            />
-            <Typography
-              variant="h4"
-              component="h1"
-              gutterBottom
-              fontWeight="700"
-              sx={{
-                color: '#10b981',
-                textShadow: '0 0 20px rgba(16, 185, 129, 0.6), 0 0 40px rgba(16, 185, 129, 0.3)',
+                background: `linear-gradient(135deg, rgba(4, 20, 10, 0.6) 0%, ${primaryColor}17 50%, rgba(6, 25, 15, 0.8) 100%)`,
+                color: '#6ee7b7',
+                p: 4,
+                textAlign: 'center',
+                borderBottom: `1px solid ${primaryColor}33`,
                 position: 'relative',
-                letterSpacing: '0.5px',
+                overflow: 'hidden',
               }}
             >
-              ZestPrep
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#6ee7b7', opacity: 0.9, position: 'relative' }}>
-              Login to continue your placement journey
-            </Typography>
-          </Box>
+              {/* Header glow */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '200%',
+                  height: '200%',
+                  background: `radial-gradient(circle, ${primaryColor}22 0%, transparent 70%)`,
+                  pointerEvents: 'none',
+                }}
+              />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+                {settings?.logoUrl ? (
+                  <Box
+                    component="img"
+                    src={settings.logoUrl}
+                    alt={`${siteName} logo`}
+                    sx={{ height: 48, width: 'auto', objectFit: 'contain', borderRadius: 1, boxShadow: `0 0 20px ${primaryColor}33` }}
+                  />
+                ) : null}
+                <Typography
+                  variant="h4"
+                  component="h1"
+                  gutterBottom
+                  fontWeight="700"
+                  sx={{
+                    color: primaryColor,
+                    textShadow: `0 0 20px ${primaryColor}80, 0 0 40px ${primaryColor}40`,
+                    position: 'relative',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  {siteName}
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: '#d6f4e0', opacity: 0.95, position: 'relative' }}>
+                Login to continue your placement journey
+              </Typography>
+            </Box>
 
           {/* Tabs */}
           <Box sx={{ borderBottom: 1, borderColor: 'rgba(16, 185, 129, 0.2)', bgcolor: 'rgba(0, 10, 5, 0.4)' }}>
@@ -333,7 +348,7 @@ const Login: React.FC = () => {
                 sx={{
                   mt: 3,
                   py: 1.5,
-                  background: 'linear-gradient(90deg, #064e3b, #047857, #059669)',
+                  background: `linear-gradient(90deg, ${primaryColor}, ${primaryColor}dd, ${primaryColor})`,
                   transition: 'all 0.3s ease',
                   position: 'relative',
                   overflow: 'hidden',
@@ -348,8 +363,8 @@ const Login: React.FC = () => {
                     transition: 'left 0.5s',
                   },
                   '&:hover': {
-                    background: 'linear-gradient(90deg, #047857, #059669, #10b981)',
-                    boxShadow: '0 0 30px rgba(16,185,129,0.5), 0 0 60px rgba(16,185,129,0.2)',
+                    background: `linear-gradient(90deg, ${primaryColor}dd, ${primaryColor}, ${primaryColor}dd)`,
+                    boxShadow: `0 0 30px ${primaryColor}55, 0 0 60px ${primaryColor}2a`,
                     transform: 'translateY(-2px)',
                     '&::before': {
                       left: '100%',

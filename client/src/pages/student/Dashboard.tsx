@@ -10,6 +10,7 @@ import AptitudeTest from './AptitudeTest';
 import MockInterviews from './MockInterviews';
 import EnglishAnalysis from './EnglishAnalysis';
 import ReadinessAnalyzer from './ReadinessAnalyzer';
+import ReadinessTest from './ReadinessTest';
 import CoreSubjects from './CoreSubjects';
 import Analytics from './Analytics';
 
@@ -26,6 +27,7 @@ const StudentDashboard: React.FC = () => {
         <Route path="/interviews" element={<MockInterviews />} />
         <Route path="/english" element={<EnglishAnalysis />} />
         <Route path="/readiness" element={<ReadinessAnalyzer />} />
+        <Route path="/readiness/test" element={<ReadinessTest />} />
         <Route path="/core-subjects" element={<CoreSubjects />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="*" element={<Navigate to="/student" replace />} />

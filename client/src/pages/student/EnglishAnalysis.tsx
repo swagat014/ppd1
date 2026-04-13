@@ -51,17 +51,22 @@ const EnglishAnalysis: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom fontWeight="bold">
+      <Typography variant="h3" gutterBottom fontWeight="900" sx={{
+        background: 'linear-gradient(135deg, #00d4ff 0%, #6c63ff 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        letterSpacing: '-1px'
+      }}>
         English Analysis
       </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
+      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4, fontSize: '1.1rem' }}>
         Analyze your English skills: grammar, vocabulary, pronunciation, and writing
       </Typography>
 
       <Grid container spacing={3}>
         {/* Input Section */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Enter Text for Analysis
             </Typography>
@@ -94,7 +99,7 @@ const EnglishAnalysis: React.FC = () => {
         {/* Results Section */}
         <Grid item xs={12} md={6}>
           {analysis && (
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
                 Analysis Results
               </Typography>

@@ -444,10 +444,15 @@ const ResumeAnalysis: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom fontWeight="bold">
+      <Typography variant="h3" gutterBottom fontWeight="900" sx={{
+        background: 'linear-gradient(135deg, #00d4ff 0%, #6c63ff 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        letterSpacing: '-1px'
+      }}>
         Resume Analysis & Builder
       </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
+      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4, fontSize: '1.1rem' }}>
         Analyze your resume for ATS compatibility or create a new ATS-friendly resume
       </Typography>
 
@@ -461,7 +466,7 @@ const ResumeAnalysis: React.FC = () => {
         <Grid container spacing={3}>
           {/* Upload Section */}
           <Grid item xs={12} md={6}>
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
                 Upload Resume
               </Typography>
@@ -559,7 +564,7 @@ const ResumeAnalysis: React.FC = () => {
           {/* Analysis Results */}
           <Grid item xs={12}>
             {analysis && (
-              <Paper elevation={3} sx={{ p: 3 }}>
+              <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
                   Analysis Results
                 </Typography>
@@ -681,7 +686,7 @@ const ResumeAnalysis: React.FC = () => {
           {/* Suggestions */}
           {analysis && analysis.suggestions && (
             <Grid item xs={12}>
-              <Paper elevation={3} sx={{ p: 3 }}>
+              <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
                   Improvement Suggestions
                 </Typography>
@@ -729,7 +734,7 @@ const ResumeAnalysis: React.FC = () => {
       {activeTab === 1 && (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
                 Build Your ATS-Friendly Resume
               </Typography>

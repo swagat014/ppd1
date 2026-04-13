@@ -18,8 +18,13 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
+  InputAdornment,
+  Avatar,
+  Stack,
+  Grid,
+  Divider,
 } from '@mui/material';
-import { Business, CheckCircle, Add, Edit, Delete } from '@mui/icons-material';
+import { Business, CheckCircle, Add, Edit, Delete, Search, GroupWork, ToggleOn, ToggleOff } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -29,6 +34,8 @@ interface Department {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  studentCount?: number;
+  teacherCount?: number;
 }
 
 const DepartmentsPage: React.FC = () => {
@@ -37,6 +44,17 @@ const DepartmentsPage: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [newDepartment, setNewDepartment] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const stats = {
+    total: departments.length,
+    active: departments.filter(d => d.isActive).length,
+    inactive: departments.filter(d => !d.isActive).length,
+  };
+
+  const filteredDepartments = departments.filter(dept => 
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
   const fetchDepartments = async () => {
     try {
@@ -139,92 +157,134 @@ const DepartmentsPage: React.FC = () => {
             </Button>
           </Box>
           
-          <Typography variant="body1" color="textSecondary" mb={3}>
-            Manage academic departments, their configurations, and associated data.
+          <Typography variant="body1" color="textSecondary" mb={4}>
+            Configure and manage academic divisions, monitor enrollment, and oversee departmental performance.
           </Typography>
-          
+
+          {/* Quick Stats */}
+          <Grid container spacing={3} mb={4}>
+            <Grid item xs={12} sm={4}>
+              <Paper className="glass-card" sx={{ p: 2, textAlign: 'center', border: '1px solid rgba(0, 255, 100, 0.1)' }}>
+                <GroupWork sx={{ color: '#00ff64', mb: 1 }} />
+                <Typography variant="h4" fontWeight="bold">{stats.total}</Typography>
+                <Typography variant="body2" color="textSecondary">Total Departments</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Paper className="glass-card" sx={{ p: 2, textAlign: 'center', border: '1px solid rgba(0, 212, 255, 0.1)' }}>
+                <ToggleOn sx={{ color: '#00d4ff', mb: 1 }} />
+                <Typography variant="h4" fontWeight="bold">{stats.active}</Typography>
+                <Typography variant="body2" color="textSecondary">Active</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Paper className="glass-card" sx={{ p: 2, textAlign: 'center', border: '1px solid rgba(255, 77, 77, 0.1)' }}>
+                <ToggleOff sx={{ color: '#ff4d4d', mb: 1 }} />
+                <Typography variant="h4" fontWeight="bold">{stats.inactive}</Typography>
+                <Typography variant="body2" color="textSecondary">Inactive</Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
           <Paper elevation={4} sx={{ p: 3, background: '#0a0a0a', border: '1px solid rgba(0, 204, 82, 0.2)', borderRadius: 2 }}>
-            <Typography variant="h5" gutterBottom fontWeight="bold" color="primary.light" mb={2}>
-              Available Departments
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+              <Typography variant="h5" fontWeight="bold" color="primary.light">
+                Available Departments
+              </Typography>
+              <TextField
+                size="small"
+                placeholder="Search departments..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ color: 'rgba(255,255,255,0.3)' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ width: 250 }}
+              />
+            </Box>
             <List>
-              {departments.map((dept) => (
+              {filteredDepartments.map((dept) => (
                 <ListItem 
                   key={dept._id} 
                   sx={{ 
-                    mb: 1, 
+                    mb: 1.5, 
                     borderRadius: 2, 
-                    background: 'rgba(0, 204, 82, 0.05)', 
-                    border: '1px solid rgba(0, 204, 82, 0.1)', 
-                    '&:hover': { background: 'rgba(0, 204, 82, 0.15)' },
+                    background: 'rgba(255, 255, 255, 0.02)', 
+                    border: '1px solid rgba(255, 255, 255, 0.05)', 
+                    '&:hover': { background: 'rgba(0, 204, 82, 0.08)', borderColor: 'rgba(0, 204, 82, 0.3)' },
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    p: 2
                   }}
                 >
-                  <Box display="flex" alignItems="center">
-                    <ListItemIcon>
-                      <CheckCircle sx={{ color: '#00ff64' }} />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={dept.name}
-                      primaryTypographyProps={{ color: 'primary.light', fontWeight: 'medium' }}
-                    />
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Avatar sx={{ bgcolor: 'rgba(0, 255, 100, 0.1)', color: '#00ff64' }}>
+                      <Business />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold" color="white">
+                        {dept.name}
+                      </Typography>
+                      <Box display="flex" gap={2}>
+                        <Typography variant="caption" color="textSecondary">
+                          Created on {new Date(dept.createdAt).toLocaleDateString()}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#00ff64', fontWeight: 'bold' }}>
+                          {dept.studentCount || 0} Students
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#00d4ff', fontWeight: 'bold' }}>
+                          {dept.teacherCount || 0} Teachers
+                        </Typography>
+                      </Box>
+                    </Box>
                   </Box>
-                  <Box display="flex" gap={1}>
+                  <Stack direction="row" spacing={1} alignItems="center">
                     <Chip 
                       label={dept.isActive ? "Active" : "Inactive"} 
-                      color={dept.isActive ? "success" : "default"} 
                       size="small" 
                       sx={{ 
-                        background: dept.isActive ? 'linear-gradient(135deg, #00cc52, #00ff64)' : 'rgba(100, 100, 100, 0.3)',
-                        color: dept.isActive ? 'black' : 'text.primary',
-                        fontWeight: 'bold'
+                        background: dept.isActive ? 'rgba(0, 204, 82, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                        color: dept.isActive ? '#00ff64' : 'rgba(255,255,255,0.5)',
+                        fontWeight: 'bold',
+                        border: `1px solid ${dept.isActive ? 'rgba(0, 204, 82, 0.2)' : 'rgba(255, 255, 255, 0.1)'}`
                       }}
                     />
-                    <Tooltip title="Edit department">
+                    <Divider orientation="vertical" flexItem sx={{ mx: 1, opacity: 0.1 }} />
+                    <Tooltip title="Edit">
                       <IconButton 
-                        color="primary" 
                         onClick={() => {
                           setEditingDepartment(dept);
                           setNewDepartment(dept.name);
                           setOpenDialog(true);
                         }}
                         size="small"
-                        sx={{
-                          color: '#00ff64',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0, 204, 82, 0.2)',
-                            color: '#ffffff',
-                          },
-                          width: '32px',
-                          height: '32px',
-                        }}
+                        sx={{ color: '#00d4ff', '&:hover': { bgcolor: 'rgba(0, 212, 255, 0.1)' } }}
                       >
                         <Edit fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Delete department">
+                    <Tooltip title="Delete">
                       <IconButton 
-                        color="error" 
                         onClick={() => handleDeleteDepartment(dept._id)}
                         size="small"
-                        sx={{
-                          color: '#ff6b6b',
-                          '&:hover': {
-                            backgroundColor: 'rgba(220, 20, 60, 0.2)',
-                            color: '#ffffff',
-                          },
-                          width: '32px',
-                          height: '32px',
-                        }}
+                        sx={{ color: '#ff4d4d', '&:hover': { bgcolor: 'rgba(255, 77, 77, 0.1)' } }}
                       >
                         <Delete fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  </Box>
+                  </Stack>
                 </ListItem>
               ))}
+              {filteredDepartments.length === 0 && (
+                <Box textAlign="center" py={4}>
+                  <Typography color="textSecondary">No departments found matching "{searchTerm}"</Typography>
+                </Box>
+              )}
             </List>
           </Paper>
           

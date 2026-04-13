@@ -79,6 +79,11 @@ interface ProfileProps {
   onClose: () => void;
 }
 
+interface Department {
+  _id: string;
+  name: string;
+}
+
 const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +93,7 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
   const [tempProfile, setTempProfile] = useState<any>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEditProfile = () => {
@@ -175,20 +181,24 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/profile');
-      setProfile(response.data.data);
+      const [profileRes, deptRes] = await Promise.all([
+        axios.get('/profile'),
+        axios.get('/profile/departments')
+      ]);
+      setProfile(profileRes.data.data);
+      setDepartments(deptRes.data.data);
       
       // Set profile picture based on role
-      if (response.data.data.studentInfo?.profilePic) {
-        setProfilePic(response.data.data.studentInfo.profilePic);
-      } else if (response.data.data.employeeInfo?.profilePic) {
-        setProfilePic(response.data.data.employeeInfo.profilePic);
-      } else if (response.data.data.adminInfo?.profilePic) {
-        setProfilePic(response.data.data.adminInfo.profilePic);
+      if (profileRes.data.data.studentInfo?.profilePic) {
+        setProfilePic(profileRes.data.data.studentInfo.profilePic);
+      } else if (profileRes.data.data.employeeInfo?.profilePic) {
+        setProfilePic(profileRes.data.data.employeeInfo.profilePic);
+      } else if (profileRes.data.data.adminInfo?.profilePic) {
+        setProfilePic(profileRes.data.data.adminInfo.profilePic);
       }
       
-      if (response.data.data.adminInfo) {
-        setCollegeName(response.data.data.adminInfo.collegeName);
+      if (profileRes.data.data.adminInfo) {
+        setCollegeName(profileRes.data.data.adminInfo.collegeName);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to fetch profile');
@@ -329,12 +339,11 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
                         onChange={(e) => setTempProfile({...tempProfile, user: {...tempProfile?.user, profile: {...tempProfile?.user?.profile, department: e.target.value}}})}
                       >
                         <MenuItem value="">None</MenuItem>
-                        <MenuItem value="Computer Science">Computer Science</MenuItem>
-                        <MenuItem value="Electrical">Electrical</MenuItem>
-                        <MenuItem value="Mechanical">Mechanical</MenuItem>
-                        <MenuItem value="Civil">Civil</MenuItem>
-                        <MenuItem value="Chemical">Chemical</MenuItem>
-                        <MenuItem value="Other">Other</MenuItem>
+                        {departments.map((dept) => (
+                          <MenuItem key={dept._id} value={dept.name}>
+                            {dept.name}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                   </Grid>

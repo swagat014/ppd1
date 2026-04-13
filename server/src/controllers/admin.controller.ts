@@ -6,8 +6,22 @@ import csv from 'csv-parser';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
 import Department from '../models/Department.model';
+import Problem from '../models/Problem.model';
+import AptitudeTest from '../models/AptitudeTest.model';
+import SystemSettings from '../models/SystemSettings.model';
+import ActivityLog from '../models/ActivityLog.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import * as bcrypt from 'bcryptjs';
+
+// Helper function to record activity logs
+const logActivity = async (userId: any, action: string, details: string, module: string) => {
+  try {
+    if (!userId) return; // Don't log if no user ID
+    await ActivityLog.create({ user: userId.toString(), action, details, module });
+  } catch (error) {
+    console.error('Failed to log activity:', error);
+  }
+};
 
 // import * as jwt from 'jsonwebtoken'; // Not needed for CSV upload functionality
 
@@ -872,9 +886,21 @@ export const getAllDepartments = async (req: AuthRequest, res: Response): Promis
   try {
     const departments = await Department.find({}).sort({ createdAt: -1 });
     
+    // Get student count for each department
+    const deptsWithCounts = await Promise.all(departments.map(async (dept) => {
+      const count = await User.countDocuments({ 
+        role: 'student', 
+        'profile.department': dept.name 
+      });
+      return {
+        ...dept.toObject(),
+        studentCount: count
+      };
+    }));
+    
     res.status(200).json({
       success: true,
-      data: departments,
+      data: deptsWithCounts,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -996,21 +1022,50 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     const tposCount = await User.countDocuments({ role: 'tpo' });
     const adminsCount = await User.countDocuments({ role: 'admin' });
     
-    // Define the known departments list
-    const departmentsList = [
-      'Computer Science & Engineering',
-      'Electrical Engineering',
-      'Mechanical Engineering',
-      'Civil Engineering',
-      'Electronics & Communication Engineering',
-      'Information Technology',
-      'Applied Sciences',
-      'Management Studies',
-    ];
+    // Get actual department count from Department model
+    const departmentsCount = await Department.countDocuments({ isActive: true });
+
+    // Get DSA and Aptitude stats
+    const totalProblems = await Problem.countDocuments();
+    const totalTests = await AptitudeTest.countDocuments();
     
-    // Count unique departments from users
-    const uniqueDepartments = await User.distinct('profile.department', { 'profile.department': { $nin: [null, ''] } });
-    const departmentsCount = Math.max(departmentsList.length, uniqueDepartments.length);
+    // Get student progress stats
+    const studentProgress = await Student.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgReadinessScore: { $avg: '$readiness.overallScore' },
+          totalDSASolved: { $sum: '$practice.dsa.solvedProblems' },
+          totalAptitudeCompleted: { $sum: '$practice.aptitude.completedTests' },
+        },
+      },
+    ]);
+
+    // Get placement stats
+    const placedStudents = await Student.countDocuments({ 'placement.status': 'Placed' });
+    const studentsWithPackage = await Student.find({ 
+      'placement.status': 'Placed',
+      'placement.package': { $gt: 0 }
+    }).select('placement.package');
+    
+    const totalPackage = studentsWithPackage.reduce((sum, s) => sum + (s.placement?.package || 0), 0);
+    const avgPackage = studentsWithPackage.length > 0
+      ? (totalPackage / studentsWithPackage.length).toFixed(1)
+      : '0';
+
+    // Get recent activity logs
+    const recentLogs = await ActivityLog.find()
+      .populate('user', 'profile.name email')
+      .sort({ createdAt: -1 })
+      .limit(6);
+
+    // Get User Distribution for chart
+    const userDistribution = [
+      { name: 'Students', value: studentsCount },
+      { name: 'Teachers', value: teachersCount },
+      { name: 'TPOs', value: tposCount },
+      { name: 'Admins', value: adminsCount },
+    ];
 
     res.status(200).json({
       success: true,
@@ -1021,7 +1076,316 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         tpos: tposCount,
         admins: adminsCount,
         departments: departmentsCount,
+        placedStudents,
+        avgPackage: `₹${avgPackage}L`,
+        content: {
+          totalProblems,
+          totalTests,
+        },
+        progress: studentProgress[0] || {
+          avgReadinessScore: 0,
+          totalDSASolved: 0,
+          totalAptitudeCompleted: 0,
+        },
+        recentLogs,
+        userDistribution,
       },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+};
+
+// @desc    Get student analytics
+// @route   GET /api/admin/analytics
+// @access  Private (Admin only)
+export const getStudentAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // 1. Department-wise average readiness scores
+    const deptReadiness = await Student.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userDetails',
+        },
+      },
+      { $unwind: '$userDetails' },
+      {
+        $group: {
+          _id: '$userDetails.profile.department',
+          avgReadiness: { $avg: '$readiness.overallScore' },
+          avgTechnical: { $avg: '$readiness.technicalScore' },
+          avgAptitude: { $avg: '$readiness.aptitudeScore' },
+          studentCount: { $sum: 1 },
+        },
+      },
+      { $match: { _id: { $ne: null } } },
+      { $sort: { avgReadiness: -1 } }
+    ]);
+
+    // 2. Readiness Level Distribution
+    const readinessDistribution = await Student.aggregate([
+      {
+        $project: {
+          level: {
+            $cond: [
+              { $gte: ['$readiness.overallScore', 80] }, 'Excellent',
+              { $cond: [
+                { $gte: ['$readiness.overallScore', 60] }, 'Good',
+                { $cond: [
+                  { $gte: ['$readiness.overallScore', 40] }, 'Average', 'Below Average'
+                ]}
+              ]}
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$level',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 3. Overall stats
+    const totalStudents = await Student.countDocuments();
+    const avgOverallReadiness = await Student.aggregate([
+      { $group: { _id: null, avg: { $avg: '$readiness.overallScore' } } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        departmentWise: deptReadiness,
+        readinessLevelDistribution: readinessDistribution,
+        summary: {
+          totalStudents,
+          averageReadiness: avgOverallReadiness[0]?.avg || 0,
+        }
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get placement statistics
+// @route   GET /api/admin/placement-stats
+// @access  Private (Admin only)
+export const getPlacementStats = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // 1. Placement Status Distribution
+    const statusDistribution = await Student.aggregate([
+      {
+        $group: {
+          _id: '$placement.status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 2. Package Range Distribution
+    const packageDistribution = await Student.aggregate([
+      { $match: { 'placement.status': 'Placed', 'placement.package': { $exists: true, $ne: null } } },
+      {
+        $project: {
+          range: {
+            $cond: [
+              { $gte: ['$placement.package', 20] }, '20L+',
+              { $cond: [
+                { $gte: ['$placement.package', 10] }, '10L-20L',
+                { $cond: [
+                  { $gte: ['$placement.package', 5] }, '5L-10L', '< 5L'
+                ]}
+              ]}
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$range',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 3. Top Hiring Companies
+    const topCompanies = await Student.aggregate([
+      { $match: { 'placement.company': { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$placement.company',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // 4. Dept-wise Placement Rate
+    const deptPlacements = await Student.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userDetails',
+        },
+      },
+      { $unwind: '$userDetails' },
+      {
+        $group: {
+          _id: '$userDetails.profile.department',
+          total: { $sum: 1 },
+          placed: { 
+            $sum: { $cond: [{ $eq: ['$placement.status', 'Placed'] }, 1, 0] } 
+          }
+        }
+      },
+      {
+        $project: {
+          department: '$_id',
+          total: 1,
+          placed: 1,
+          rate: { $multiply: [{ $divide: ['$placed', '$total'] }, 100] }
+        }
+      },
+      { $sort: { rate: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        statusDistribution,
+        packageDistribution,
+        topCompanies,
+        departmentWise: deptPlacements,
+        avgPackage: await Student.aggregate([
+          { $match: { 'placement.status': 'Placed', 'placement.package': { $exists: true, $ne: null } } },
+          { $group: { _id: null, avg: { $avg: '$placement.package' } } }
+        ]).then(res => res[0]?.avg || 0)
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get system settings
+// @route   GET /api/admin/settings
+// @access  Private (Admin only)
+export const getSystemSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    let settings = await SystemSettings.findOne();
+    if (!settings) {
+      settings = await SystemSettings.create({});
+    }
+    res.status(200).json({ success: true, data: settings });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Update system settings
+// @route   PUT /api/admin/settings
+// @access  Private (Admin only)
+export const updateSystemSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { siteName, contactEmail, contactPhone, address, maintenanceMode, allowRegistration, logoUrl, appearance } = req.body;
+    
+    let settings = await SystemSettings.findOne();
+    if (!settings) {
+      settings = new SystemSettings({});
+    }
+
+    settings.siteName = siteName || settings.siteName;
+    settings.contactEmail = contactEmail || settings.contactEmail;
+    settings.contactPhone = contactPhone || settings.contactPhone;
+    settings.address = address || settings.address;
+    settings.maintenanceMode = maintenanceMode !== undefined ? maintenanceMode : settings.maintenanceMode;
+    settings.allowRegistration = allowRegistration !== undefined ? allowRegistration : settings.allowRegistration;
+    settings.logoUrl = logoUrl !== undefined ? logoUrl : settings.logoUrl;
+
+    if (appearance && typeof appearance === 'object') {
+      settings.appearance = {
+        ...settings.appearance,
+        ...(typeof appearance.primaryColor === 'string' ? { primaryColor: appearance.primaryColor } : {}),
+        ...(typeof appearance.darkMode === 'boolean' ? { darkMode: appearance.darkMode } : {}),
+      };
+    }
+
+    await settings.save();
+    
+    // Log the action
+    await logActivity(req.user?._id as any, 'Update Settings', `System settings updated: Site name changed to ${siteName || settings.siteName}`, 'settings');
+
+    res.status(200).json({ success: true, data: settings, message: 'Settings updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get activity logs
+// @route   GET /api/admin/activity-logs
+// @access  Private (Admin only)
+export const getActivityLogs = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const logs = await ActivityLog.find()
+      .populate('user', 'profile.name email role')
+      .sort({ createdAt: -1 })
+      .limit(50);
+    
+    res.status(200).json({ success: true, data: logs });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get system settings
+// @route   GET /api/admin/settings
+// @access  Private (Admin only)
+export const getSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Return default settings (can be extended to use a Settings model)
+    res.status(200).json({
+      success: true,
+      data: {
+        siteName: 'Placement Portal',
+        maintenanceMode: false,
+        allowRegistration: true,
+        defaultDepartment: 'Computer Science & Engineering',
+        emailNotifications: true,
+        darkModeDefault: false,
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+};
+
+// @desc    Update system settings
+// @route   PUT /api/admin/settings
+// @access  Private (Admin only)
+export const updateSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const settings = req.body;
+    
+    // In a real implementation, save to database
+    // For now, just return the updated settings
+    res.status(200).json({
+      success: true,
+      data: settings,
+      message: 'Settings updated successfully'
     });
   } catch (error: any) {
     res.status(500).json({

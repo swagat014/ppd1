@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@types/nodemailer": "^8.0.0",
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "bytez": "^0.7.0",

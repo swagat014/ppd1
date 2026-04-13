@@ -140,10 +140,15 @@ const CoreSubjects: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom fontWeight="bold">
+      <Typography variant="h3" gutterBottom fontWeight="900" sx={{
+        background: 'linear-gradient(135deg, #00d4ff 0%, #6c63ff 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        letterSpacing: '-1px'
+      }}>
         Core Subjects
       </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
+      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4, fontSize: '1.1rem' }}>
         Access study materials and PDF notes for {user?.profile?.department} department
       </Typography>
 
@@ -156,7 +161,7 @@ const CoreSubjects: React.FC = () => {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={3}>
-          <Paper elevation={2}>
+          <Paper elevation={0} className="glass-card">
             <Typography variant="h6" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
               Subjects
             </Typography>
@@ -184,7 +189,7 @@ const CoreSubjects: React.FC = () => {
                 {notes[0]?.subject} Notes
               </Typography>
               {notes.map((note) => (
-                <Card key={note._id} elevation={2} sx={{ mb: 2 }}>
+                <Card className="glass-card" key={note._id} elevation={0} sx={{ mb: 2 }}>
                   <CardContent>
                     <Box display="flex" alignItems="center" gap={2} mb={1}>
                       <PictureAsPdf color="error" />
@@ -219,7 +224,7 @@ const CoreSubjects: React.FC = () => {
               ))}
             </Box>
           ) : (
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Paper elevation={0} className="glass-card" sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary">
                 No notes available for this subject.
               </Typography>

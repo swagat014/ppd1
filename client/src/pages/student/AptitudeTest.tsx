@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -28,6 +28,7 @@ interface Question {
   options: string[];
   difficulty: string;
   topic: string;
+  _id?: string;
 }
 
 const AptitudeTest: React.FC = () => {
@@ -43,6 +44,28 @@ const AptitudeTest: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<any>(null);
 
+  // Use refs to always have access to current state in async operations
+  const answersRef = useRef(answers);
+  const questionsRef = useRef(questions);
+  const submittedRef = useRef(submitted);
+  const loadingRef = useRef(loading);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    questionsRef.current = questions;
+  }, [questions]);
+
+  useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
   useEffect(() => {
     if (id) {
       fetchTest();
@@ -50,18 +73,24 @@ const AptitudeTest: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (timeLeft > 0 && !submitted) {
+    // Don't start timer until test is loaded
+    if (loading) return;
+    
+    if (timeLeft > 0 && !submittedRef.current) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !submitted) {
+    } else if (timeLeft === 0 && !submittedRef.current && questionsRef.current.length > 0) {
+      // Only submit if questions are loaded and time ran out
       handleSubmit();
     }
-  }, [timeLeft, submitted]);
+  }, [timeLeft, loading]);
 
   const fetchTest = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`/student/aptitude/tests/${id}`);
+      console.log('Fetched test data:', response.data.data);
+      console.log('Questions:', response.data.data.questions);
       setTest(response.data.data);
       setQuestions(response.data.data.questions || []);
       setTimeLeft(response.data.data.duration * 60); // Convert minutes to seconds
@@ -74,16 +103,42 @@ const AptitudeTest: React.FC = () => {
   };
 
   const handleAnswerChange = (questionId: string, answer: number) => {
-    setAnswers({ ...answers, [questionId]: answer });
+    if (!questionId) {
+      console.error('QuestionId is undefined!');
+      return;
+    }
+    // Use functional update to avoid stale state
+    setAnswers(prev => {
+      const newAnswers = { ...prev, [questionId]: answer };
+      console.log('Answer updated:', newAnswers);
+      return newAnswers;
+    });
   };
 
   const handleSubmit = async () => {
-    if (submitted || submitting) return;
+    // Don't submit if already submitted, submitting, loading, or no questions loaded
+    if (submittedRef.current || submitting || loadingRef.current) {
+      console.log('Submit blocked:', { submitted: submittedRef.current, submitting, loading: loadingRef.current });
+      return;
+    }
 
+    // Use refs to get current values
+    const currentAnswers = answersRef.current;
+    const currentQuestions = questionsRef.current;
+    
+    // Don't submit if questions haven't loaded yet
+    if (!currentQuestions || currentQuestions.length === 0) {
+      console.log('Submit blocked: No questions loaded yet');
+      return;
+    }
+    
+    console.log('Submitting answers:', currentAnswers);
+    console.log('Questions:', currentQuestions.map(q => ({ id: q.questionId })));
+    
     setSubmitting(true);
     try {
       const response = await axios.post(`/student/aptitude/tests/${id}/submit`, {
-        answers,
+        answers: currentAnswers,
       });
 
       setResult(response.data.data);
@@ -113,7 +168,7 @@ const AptitudeTest: React.FC = () => {
   if (submitted && result) {
     return (
       <Box>
-        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+        <Paper elevation={0} className="glass-card" sx={{ p: 4, textAlign: 'center' }}>
           <CheckCircle sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
           <Typography variant="h4" gutterBottom fontWeight="bold">
             Test Completed!
@@ -153,7 +208,7 @@ const AptitudeTest: React.FC = () => {
         Back to Tests
       </Button>
 
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={0} className="glass-card" sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" fontWeight="bold">
             {test.title}
@@ -180,7 +235,7 @@ const AptitudeTest: React.FC = () => {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
             {questions[currentQuestion] && (
               <>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
@@ -192,13 +247,15 @@ const AptitudeTest: React.FC = () => {
 
                 <FormControl component="fieldset" fullWidth>
                   <RadioGroup
-                    value={answers[questions[currentQuestion].questionId]?.toString() || ''}
-                    onChange={(e) =>
-                      handleAnswerChange(
-                        questions[currentQuestion].questionId,
-                        parseInt(e.target.value)
-                      )
-                    }
+                    value={answers[questions[currentQuestion].questionId]?.toString() ?? ''}
+                    onChange={(e) => {
+                      const qId = questions[currentQuestion].questionId || questions[currentQuestion]._id;
+                      if (!qId) {
+                        console.error('No questionId found for question:', questions[currentQuestion]);
+                        return;
+                      }
+                      handleAnswerChange(qId, parseInt(e.target.value));
+                    }}
                   >
                     {questions[currentQuestion].options.map((option, idx) => (
                       <FormControlLabel
@@ -254,32 +311,35 @@ const AptitudeTest: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Question Navigator
             </Typography>
             <Box display="flex" flexWrap="wrap" gap={1} mt={2}>
-              {questions.map((q, idx) => (
-                <Button
-                  key={q.questionId}
-                  variant={currentQuestion === idx ? 'contained' : 'outlined'}
-                  color={
-                    answers[q.questionId] !== undefined
-                      ? 'success'
-                      : currentQuestion === idx
-                      ? 'primary'
-                      : 'inherit'
-                  }
-                  onClick={() => setCurrentQuestion(idx)}
-                  sx={{ minWidth: 40 }}
-                >
-                  {idx + 1}
-                </Button>
-              ))}
+              {questions.map((q, idx) => {
+                const qId = q.questionId || q._id;
+                return (
+                  <Button
+                    key={qId || idx}
+                    variant={currentQuestion === idx ? 'contained' : 'outlined'}
+                    color={
+                      qId && answers[qId] !== undefined
+                        ? 'success'
+                        : currentQuestion === idx
+                        ? 'primary'
+                        : 'inherit'
+                    }
+                    onClick={() => setCurrentQuestion(idx)}
+                    sx={{ minWidth: 40 }}
+                  >
+                    {idx + 1}
+                  </Button>
+                );
+              })}
             </Box>
             <Box mt={3}>
               <Typography variant="body2" color="text.secondary">
-                Answered: {Object.keys(answers).length} / {questions.length}
+                Answered: {Object.keys(answers).filter(k => answers[k] !== undefined).length} / {questions.length}
               </Typography>
             </Box>
           </Paper>

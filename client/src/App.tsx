@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import PrivateRoute from './components/common/PrivateRoute';
 import Login from './pages/auth/Login';
 import StudentDashboard from './pages/student/Dashboard';
@@ -31,114 +32,137 @@ import TeacherAnalyticsPage from './pages/teacher/analytics';
 import SchedulePage from './pages/teacher/schedule';
 import ResourcesPage from './pages/teacher/resources';
 import CoreSubjectsPage from './pages/teacher/core-subjects';
+import Maintenance from './pages/common/Maintenance';
+import axios from 'axios';
 
 const theme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#006400', // Dark green
-      light: '#388e3c',
-      dark: '#003d00',
+      main: '#6c63ff', // Premium purple
+      light: '#8b83ff',
+      dark: '#4a42d4',
     },
     secondary: {
-      main: '#00c853', // Vibrant green
+      main: '#f72585', // Vibrant pink
+      light: '#ff4da6',
+      dark: '#d1156c',
+    },
+    info: {
+      main: '#00d4ff', // Cyan
+    },
+    success: {
+      main: '#00f593', // Neon green
+    },
+    warning: {
+      main: '#ffd60a', // Neon yellow
     },
     background: {
-      default: '#000000', // Pure black
-      paper: '#0a0a0a', // Very dark black
+      default: '#050914', // Deep dark blue-black
+      paper: '#0d1228', // Slightly lighter dark blue
     },
     text: {
-      primary: '#e8f5e9',
-      secondary: '#a5d6a7',
+      primary: '#f0f4ff',
+      secondary: 'rgba(200, 210, 255, 0.65)',
     },
-    divider: '#00cc52',
+    divider: 'rgba(255, 255, 255, 0.08)',
     action: {
-      active: '#e8f5e9',
-      hover: 'rgba(0, 204, 82, 0.3)',
+      active: '#f0f4ff',
+      hover: 'rgba(108, 99, 255, 0.15)',
+      selected: 'rgba(108, 99, 255, 0.25)',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h3: {
-      fontWeight: 700,
-    },
-    h6: {
-      fontWeight: 500,
-    },
+    fontFamily: '"Inter", "Space Grotesk", sans-serif',
+    h1: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.02em' },
+    h2: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.02em' },
+    h3: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.01em' },
+    h4: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600, letterSpacing: '-0.01em' },
+    h5: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600 },
+    h6: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600 },
+    button: { fontWeight: 600, letterSpacing: '0.02em' },
+  },
+  shape: {
+    borderRadius: 16,
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          backgroundColor: '#050914',
+          backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(108, 99, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(247, 37, 133, 0.05) 0%, transparent 50%)',
+          backgroundAttachment: 'fixed',
+        },
+      },
+    },
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: '#000000',
-          color: '#e8f5e9',
-          boxShadow: '0 4px 20px rgba(0, 204, 82, 0.4)',
-          borderBottom: '1px solid rgba(0, 204, 82, 0.4)',
-          backgroundImage: 'linear-gradient(90deg, transparent, rgba(0, 204, 82, 0.1), transparent)',
+          backgroundColor: 'rgba(5, 9, 20, 0.7)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: 'none',
+          backgroundImage: 'none',
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#000000',
-          color: '#e8f5e9',
-          borderRight: '1px solid rgba(0, 204, 82, 0.5)',
-          backgroundImage: 'radial-gradient(ellipse at center, rgba(0, 204, 82, 0.15) 0%, rgba(0, 0, 0, 0) 70%)',
-          boxShadow: 'inset -10px 0 15px -10px rgba(0, 204, 82, 0.2)',
+          backgroundColor: 'rgba(13, 18, 40, 0.95)',
+          backdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+          boxShadow: '4px 0 24px rgba(0, 0, 0, 0.4)',
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none',
-          background: 'linear-gradient(145deg, #0a0a0a, #000000)',
-          boxShadow: '0 10px 40px rgba(0, 204, 82, 0.25)',
-          border: '1px solid rgba(0, 204, 82, 0.3)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '12px',
+          backgroundColor: 'rgba(13, 18, 40, 0.6) !important',
+          backdropFilter: 'blur(20px) !important',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: 'rgba(13, 18, 40, 0.6) !important',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '24px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+          overflow: 'hidden',
+          position: 'relative',
+          '&:hover': {
+            transform: 'translateY(-5px)',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(108, 99, 255, 0.15)',
+            border: '1px solid rgba(108, 99, 255, 0.3)',
+          },
           '&::before': {
             content: '""',
             position: 'absolute',
             top: 0,
             left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(145deg, transparent, rgba(0, 204, 82, 0.05), transparent)',
-            borderRadius: 'inherit',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%)',
             pointerEvents: 'none',
-          },
-          position: 'relative',
+          }
         },
       },
     },
-    MuiTableCell: {
+    MuiCardContent: {
       styleOverrides: {
         root: {
-          borderBottom: '1px solid rgba(0, 204, 82, 0.3)',
-          padding: '14px 16px',
-          background: 'rgba(0, 204, 82, 0.05)',
-          '&:first-of-type': {
-            borderTopLeftRadius: '8px',
-            borderBottomLeftRadius: '8px',
-          },
-          '&:last-of-type': {
-            borderTopRightRadius: '8px',
-            borderBottomRightRadius: '8px',
-          },
-        },
-      },
-    },
-    MuiTableRow: {
-      styleOverrides: {
-        root: {
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            transform: 'scale(1.01)',
-            boxShadow: '0 0 20px rgba(0, 204, 82, 0.3)',
-            zIndex: 1,
-            position: 'relative',
+          padding: '24px',
+          '&:last-child': {
+            paddingBottom: '24px',
           },
         },
       },
@@ -147,50 +171,35 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: 'none',
-          fontWeight: 600,
-          borderRadius: '10px',
-          padding: '10px 20px',
+          borderRadius: '12px',
+          padding: '10px 24px',
           transition: 'all 0.3s ease',
-          fontSize: '0.95rem',
+        },
+        contained: {
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
+          '&:hover': {
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.4)',
+            transform: 'translateY(-2px)',
+          },
         },
         containedPrimary: {
-          background: 'linear-gradient(135deg, #00cc52 0%, #00ff64 100%)',
-          color: '#000',
-          boxShadow: '0 6px 15px rgba(0, 204, 82, 0.4)',
+          background: 'linear-gradient(135deg, #6c63ff 0%, #4a42d4 100%)',
           '&:hover': {
-            background: 'linear-gradient(135deg, #00ff64 0%, #00cc52 100%)',
-            boxShadow: '0 8px 25px rgba(0, 204, 82, 0.6)',
-            transform: 'translateY(-3px)',
+            background: 'linear-gradient(135deg, #8b83ff 0%, #6c63ff 100%)',
+            boxShadow: '0 8px 25px rgba(108, 99, 255, 0.4)',
           },
-          '&:active': {
-            transform: 'translateY(0)',
+        },
+        containedSecondary: {
+          background: 'linear-gradient(135deg, #f72585 0%, #d1156c 100%)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #ff4da6 0%, #f72585 100%)',
+            boxShadow: '0 8px 25px rgba(247, 37, 133, 0.4)',
           },
         },
         outlined: {
-          borderColor: 'rgba(0, 204, 82, 0.5)',
-          color: '#e8f5e9',
-          background: 'rgba(0, 204, 82, 0.1)',
+          borderWidth: '1.5px',
           '&:hover': {
-            backgroundColor: 'rgba(0, 204, 82, 0.2)',
-            borderColor: '#00ff64',
-          },
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          background: 'rgba(0, 204, 82, 0.1)',
-          borderRadius: '10px',
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(0, 204, 82, 0.5)',
-          },
-          '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#00ff64',
-          },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#00ff64',
-            borderWidth: '2px',
+            borderWidth: '1.5px',
           },
         },
       },
@@ -198,43 +207,112 @@ const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(135deg, rgba(0, 204, 82, 0.2), rgba(0, 255, 100, 0.2))',
-          backdropFilter: 'blur(4px)',
-          border: '1px solid rgba(0, 204, 82, 0.3)',
-          borderRadius: '20px',
-          fontWeight: 500,
+          borderRadius: '8px',
+          fontWeight: 600,
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        },
+        outlined: {
+          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        },
+        colorInfo: {
+          backgroundColor: 'rgba(0, 212, 255, 0.15)',
+          color: '#00d4ff',
+          border: '1px solid rgba(0, 212, 255, 0.3)',
+        },
+        colorSuccess: {
+          backgroundColor: 'rgba(0, 245, 147, 0.15)',
+          color: '#00f593',
+          border: '1px solid rgba(0, 245, 147, 0.3)',
+        },
+        colorWarning: {
+          backgroundColor: 'rgba(255, 214, 10, 0.15)',
+          color: '#ffd60a',
+          border: '1px solid rgba(255, 214, 10, 0.3)',
+        },
+        colorError: {
+          backgroundColor: 'rgba(247, 37, 133, 0.15)',
+          color: '#f72585',
+          border: '1px solid rgba(247, 37, 133, 0.3)',
         },
       },
     },
-    MuiCard: {
+    MuiTableCell: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(145deg, #0a0a0a, #000000)',
-          boxShadow: '0 10px 40px rgba(0, 204, 82, 0.25)',
-          border: '1px solid rgba(0, 204, 82, 0.3)',
-          backdropFilter: 'blur(10px)',
-          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(145deg, transparent, rgba(0, 204, 82, 0.1), transparent)',
-            borderRadius: 'inherit',
-            pointerEvents: 'none',
-          },
-          position: 'relative',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          padding: '16px',
+        },
+        head: {
+          fontWeight: 600,
+          color: '#f0f4ff',
+          backgroundColor: 'rgba(0, 0, 0, 0.2)',
         },
       },
     },
-    MuiToolbar: {
+    MuiTableRow: {
       styleOverrides: {
-        regular: {
-          minHeight: '64px !important',
+        root: {
+          transition: 'background-color 0.2s',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.02) !important',
+          },
+        },
+      },
+    },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          height: 8,
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        },
+        bar: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: '12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#6c63ff',
+            borderWidth: '2px',
+          },
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: '12px',
+          margin: '4px 12px',
+          padding: '10px 16px',
+          transition: 'all 0.2s',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          },
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(108, 99, 255, 0.15)',
+            borderLeft: '4px solid #6c63ff',
+            '&:hover': {
+              backgroundColor: 'rgba(108, 99, 255, 0.25)',
+            },
+          },
+        },
+      },
+    },
+    MuiAvatar: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
         },
       },
     },
@@ -242,11 +320,29 @@ const theme = createTheme({
 });
 
 function App() {
+  // Add global maintenance interceptor
+  React.useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 503 && error.response?.data?.isMaintenance) {
+          const userRole = localStorage.getItem('role');
+          if (userRole !== 'admin') {
+            window.location.href = '/maintenance';
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <Router>
+      <SettingsProvider>
+        <AuthProvider>
+          <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
@@ -433,6 +529,7 @@ function App() {
                 </PrivateRoute>
             }
           />
+            <Route path="/maintenance" element={<Maintenance />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
         </Router>
@@ -447,7 +544,8 @@ function App() {
           draggable
           pauseOnHover
         />
-      </AuthProvider>
+        </AuthProvider>
+      </SettingsProvider>
     </ThemeProvider>
   );
 }

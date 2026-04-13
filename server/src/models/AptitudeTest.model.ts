@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAptitudeTest extends Document {
   title: string;
   description: string;
-  type: 'quantitative' | 'logical' | 'verbal' | 'mixed';
+  type: 'quantitative' | 'logical' | 'verbal' | 'technical' | 'mixed';
   companies: string[];
   duration: number; // in minutes
   totalQuestions: number;
@@ -32,7 +32,7 @@ const aptitudeTestSchema = new Schema<IAptitudeTest>(
     description: String,
     type: {
       type: String,
-      enum: ['quantitative', 'logical', 'verbal', 'mixed'],
+      enum: ['quantitative', 'logical', 'verbal', 'technical', 'mixed'],
       required: true,
     },
     companies: [String],

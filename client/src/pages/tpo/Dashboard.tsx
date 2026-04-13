@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import TpoLayout from '../../components/tpo/TpoLayout';
 import {
   Container,
@@ -14,64 +14,202 @@ import {
   ListItemText,
   ListItemIcon,
   Divider,
+  Alert,
+  Button,
+  LinearProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   People,
   Work,
   Assessment,
   BarChart,
-  Description,
   TrendingUp,
   EmojiEvents,
   Business,
   School,
+  Code,
+  Quiz,
+  Refresh,
+  Visibility,
+  Edit,
+  Delete,
+  Add,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { SkeletonDashboard } from '../../components/common/SkeletonLoading';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+interface DashboardStats {
+  totalStudents: number;
+  totalProblems: number;
+  totalTests: number;
+  placedStudents: number;
+  avgPackage: string;
+  activeCompanies: number;
+}
+
+interface RecentStudent {
+  _id: string;
+  userId: {
+    profile: {
+      firstName: string;
+      lastName: string;
+    };
+    email: string;
+  };
+  readiness: {
+    overallScore: number;
+  };
+  updatedAt: string;
+}
 
 const TpoDashboard: React.FC = () => {
-  // Sample data for demonstration
-  const stats = [
-    { title: 'Total Students', value: '1,248', icon: <People />, color: 'primary' },
-    { title: 'Placed Students', value: '987', icon: <Work />, color: 'success' },
-    { title: 'Active Companies', value: '42', icon: <Business />, color: 'warning' },
-    { title: 'Avg. Package', value: '₹6.2L', icon: <TrendingUp />, color: 'info' },
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalStudents: 0,
+    totalProblems: 0,
+    totalTests: 0,
+    placedStudents: 0,
+    avgPackage: '₹0L',
+    activeCompanies: 0,
+  });
+  const [recentStudents, setRecentStudents] = useState<RecentStudent[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Fetch dashboard stats
+      const dashboardRes = await axios.get(`${API_URL}/tpo/dashboard`, { headers });
+      
+      if (dashboardRes.data.success) {
+        const { stats: apiStats, recentStudents: apiStudents } = dashboardRes.data.data;
+        
+        setStats({
+          totalStudents: apiStats.totalStudents || 0,
+          totalProblems: apiStats.totalProblems || 0,
+          totalTests: apiStats.totalTests || 0,
+          placedStudents: Math.floor((apiStats.totalStudents || 0) * 0.75), // Estimated
+          avgPackage: '₹6.2L', // Placeholder
+          activeCompanies: 42, // Placeholder
+        });
+        
+        setRecentStudents(apiStudents || []);
+      }
+
+      // Fetch analytics for additional data
+      const analyticsRes = await axios.get(`${API_URL}/tpo/analytics`, { headers });
+      
+      if (analyticsRes.data.success) {
+        // Generate recent activities based on data
+        const activities = [
+          { id: 1, text: `${stats.totalProblems} DSA problems available for practice`, time: 'Active', type: 'dsa' },
+          { id: 2, text: `${stats.totalTests} aptitude tests created`, time: 'Active', type: 'aptitude' },
+          { id: 3, text: `${stats.totalStudents} students registered`, time: 'Total', type: 'students' },
+        ];
+        setRecentActivities(activities);
+      }
+    } catch (err: any) {
+      console.error('Error fetching dashboard:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const statCards = [
+    { title: 'Total Students', value: stats.totalStudents.toString(), icon: <People />, color: 'primary', path: '/tpo/students' },
+    { title: 'DSA Problems', value: stats.totalProblems.toString(), icon: <Code />, color: 'success', path: '/tpo/analytics' },
+    { title: 'Aptitude Tests', value: stats.totalTests.toString(), icon: <Quiz />, color: 'warning', path: '/tpo/analytics' },
+    { title: 'Active Companies', value: stats.activeCompanies.toString(), icon: <Business />, color: 'info', path: '/tpo/companies' },
   ];
 
-  const recentActivities = [
-    { id: 1, text: 'Company XYZ visited campus for recruitment', time: '2 hours ago' },
-    { id: 2, text: 'New placement record achieved: 95% students placed', time: '1 day ago' },
-    { id: 3, text: 'Conducted mock interviews for 50 students', time: '2 days ago' },
-    { id: 4, text: 'Updated company database with 15 new entries', time: '3 days ago' },
-  ];
+  const getReadinessColor = (score: number) => {
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'warning';
+    return 'error';
+  };
 
-  const upcomingCompanies = [
-    { name: 'TechCorp', role: 'Software Engineer', date: 'Jan 15, 2026', students: 50 },
-    { name: 'Innovate Inc.', role: 'Data Analyst', date: 'Jan 18, 2026', students: 30 },
-    { name: 'Global Solutions', role: 'DevOps Engineer', date: 'Jan 22, 2026', students: 25 },
-    { name: 'Future Tech', role: 'Full Stack Developer', date: 'Jan 25, 2026', students: 40 },
-  ];
+  if (loading) {
+    return (
+      <TpoLayout>
+        <SkeletonDashboard type="tpo" />
+      </TpoLayout>
+    );
+  }
 
   return (
     <TpoLayout>
       <Container maxWidth="xl">
-        <Grid container spacing={4}>
+        <Grid container spacing={3}>
           {/* Page Header */}
           <Grid item xs={12}>
-            <Typography variant="h4" fontWeight="bold" color="text.primary">
-              TPO Dashboard
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Manage student placements and track performance metrics
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h3" fontWeight="900" sx={{
+                  background: 'linear-gradient(135deg, #f0f4ff 0%, #00f593 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-1px'
+                }}>
+                  TPO Dashboard
+                </Typography>
+                <Typography variant="subtitle1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
+                  Manage student placements and track performance metrics
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={fetchDashboardData}
+              >
+                Refresh
+              </Button>
+            </Box>
           </Grid>
 
+          {error && (
+            <Grid item xs={12}>
+              <Alert severity="error" onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            </Grid>
+          )}
+
           {/* Stats Cards */}
-          {stats.map((stat, index) => (
+          {statCards.map((stat, index) => (
             <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card>
+              <Card 
+                className="glass-card"
+                sx={{ cursor: 'pointer' }}
+                onClick={() => navigate(stat.path)}
+              >
                 <CardContent>
                   <Box display="flex" justifyContent="space-between">
                     <Box>
-                      <Typography color="text.secondary" variant="h6">
+                      <Typography color="text.secondary" variant="body2" fontWeight="medium">
                         {stat.title}
                       </Typography>
                       <Typography variant="h4" fontWeight="bold" mt={1}>
@@ -82,100 +220,269 @@ const TpoDashboard: React.FC = () => {
                       sx={{
                         backgroundColor: `${stat.color}.main`,
                         color: 'white',
-                        width: 56,
-                        height: 56,
+                        width: 48,
+                        height: 48,
                       }}
                     >
                       {stat.icon}
                     </Avatar>
-                  </Box>
-                  <Box mt={2}>
-                    <Chip
-                      label={index % 2 === 0 ? '+12% from last month' : '+8% from last quarter'}
-                      size="small"
-                      color={index % 2 === 0 ? 'success' : 'primary'}
-                      variant="outlined"
-                    />
                   </Box>
                 </CardContent>
               </Card>
             </Grid>
           ))}
 
-          {/* Recent Activities */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={2}>
-                  Recent Activities
-                </Typography>
-                <List>
-                  {recentActivities.map((activity) => (
-                    <React.Fragment key={activity.id}>
-                      <ListItem alignItems="flex-start">
-                        <ListItemIcon>
-                          <EmojiEvents color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={activity.text}
-                          secondary={activity.time}
-                        />
-                      </ListItem>
-                      <Divider variant="inset" component="li" />
-                    </React.Fragment>
-                  ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Upcoming Companies */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={2}>
-                  Upcoming Companies
-                </Typography>
-                <List>
-                  {upcomingCompanies.map((company, index) => (
-                    <React.Fragment key={index}>
-                      <ListItem alignItems="flex-start">
-                        <ListItemIcon>
-                          <Business color="secondary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={`${company.name} - ${company.role}`}
-                          secondary={`Date: ${company.date} | Eligible Students: ${company.students}`}
-                        />
-                      </ListItem>
-                      <Divider variant="inset" component="li" />
-                    </React.Fragment>
-                  ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Performance Chart Placeholder */}
+          {/* Quick Actions */}
           <Grid item xs={12}>
-            <Card>
+            <Card className="glass-card">
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" mb={2}>
-                  Placement Statistics
+                  Quick Actions
                 </Typography>
-                <Box
-                  height={300}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  border={1}
-                  borderColor="divider"
-                  borderRadius={2}
-                >
-                  <Typography color="text.secondary">
-                    Placement Analytics Chart would appear here
-                  </Typography>
+                <Box display="flex" gap={2} flexWrap="wrap">
+                  <Button
+                    variant="contained"
+                    startIcon={<Add />}
+                    onClick={() => navigate('/tpo/analytics')}
+                  >
+                    Manage DSA Problems
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<Add />}
+                    onClick={() => navigate('/tpo/analytics')}
+                  >
+                    Manage Aptitude Tests
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<People />}
+                    onClick={() => navigate('/tpo/students')}
+                  >
+                    View Students
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<BarChart />}
+                    onClick={() => navigate('/tpo/performance')}
+                  >
+                    View Analytics
+                  </Button>
                 </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Recent Students */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6" fontWeight="bold">
+                    Recent Student Activity
+                  </Typography>
+                  <Button size="small" onClick={() => navigate('/tpo/students')}>
+                    View All
+                  </Button>
+                </Box>
+                {recentStudents.length === 0 ? (
+                  <Typography color="text.secondary" align="center" py={4}>
+                    No recent student activity
+                  </Typography>
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Student</TableCell>
+                          <TableCell>Readiness Score</TableCell>
+                          <TableCell align="right">Action</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {recentStudents.slice(0, 5).map((student) => (
+                          <TableRow key={student._id}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="medium">
+                                {student.userId?.profile?.firstName} {student.userId?.profile?.lastName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {student.userId?.email}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={`${student.readiness?.overallScore || 0}%`}
+                                size="small"
+                                color={getReadinessColor(student.readiness?.overallScore || 0) as any}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                size="small"
+                                onClick={() => navigate(`/tpo/students`)}
+                              >
+                                <Visibility fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Content Overview */}
+          <Grid item xs={12} md={6}>
+            <Card className="glass-card" sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" mb={2}>
+                  Content Overview
+                </Typography>
+                <List>
+                  <ListItem>
+                    <ListItemIcon>
+                      <Code color="primary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="DSA Problems"
+                      secondary={`${stats.totalProblems} problems available for student practice`}
+                    />
+                    <Chip
+                      label="Active"
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                    />
+                  </ListItem>
+                  <Divider variant="inset" component="li" />
+                  <ListItem>
+                    <ListItemIcon>
+                      <Quiz color="secondary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Aptitude Tests"
+                      secondary={`${stats.totalTests} tests covering various companies and topics`}
+                    />
+                    <Chip
+                      label="Active"
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                    />
+                  </ListItem>
+                  <Divider variant="inset" component="li" />
+                  <ListItem>
+                    <ListItemIcon>
+                      <People color="info" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Registered Students"
+                      secondary={`${stats.totalStudents} students actively using the platform`}
+                    />
+                    <Chip
+                      label="Growing"
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </ListItem>
+                  <Divider variant="inset" component="li" />
+                  <ListItem>
+                    <ListItemIcon>
+                      <Business color="warning" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Company Coverage"
+                      secondary="TCS, Infosys, Wipro, Cognizant, Accenture, Google, Microsoft, Amazon"
+                    />
+                    <Chip
+                      label="8 Companies"
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* DSA & Aptitude Management Preview */}
+          <Grid item xs={12}>
+            <Card className="glass-card">
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" mb={2}>
+                  Content Management
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Box p={2} bgcolor="grey.50" borderRadius={2}>
+                      <Box display="flex" alignItems="center" mb={2}>
+                        <Code color="primary" sx={{ mr: 1 }} />
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          DSA Problems
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" mb={2}>
+                        Manage coding problems for student practice. Add, edit, or remove problems with test cases.
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min((stats.totalProblems / 50) * 100, 100)}
+                        sx={{ mb: 1 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {stats.totalProblems} problems created
+                      </Typography>
+                      <Box mt={2}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => navigate('/tpo/analytics')}
+                        >
+                          Manage Problems
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box p={3} sx={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }} borderRadius={3}>
+                      <Box display="flex" alignItems="center" mb={2}>
+                        <Quiz color="secondary" sx={{ mr: 1 }} />
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          Aptitude Tests
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" mb={2}>
+                        Create and manage aptitude tests for different companies and difficulty levels.
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min((stats.totalTests / 20) * 100, 100)}
+                        sx={{ mb: 1 }}
+                        color="secondary"
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {stats.totalTests} tests created
+                      </Typography>
+                      <Box mt={2}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="secondary"
+                          onClick={() => navigate('/tpo/analytics')}
+                        >
+                          Manage Tests
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Grid>
+                </Grid>
               </CardContent>
             </Card>
           </Grid>

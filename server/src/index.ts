@@ -15,6 +15,7 @@ import adminRoutes from './routes/admin.routes';
 import teacherRoutes from './routes/teacher.routes';
 import profileRoutes from './routes/profile.routes';
 import coreSubjectRoutes from './routes/coreSubject.routes';
+import { maintenanceMode } from './middleware/maintenance.middleware';
 
 dotenv.config();
 
@@ -43,6 +44,9 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/placement
     console.error('   Please make sure MongoDB is running or update MONGODB_URI in .env');
     console.error('   The application requires MongoDB to function properly');
   });
+
+// Maintenance Mode Middleware
+app.use(maintenanceMode);
 
 // Routes
 app.use('/api/auth', authRoutes);

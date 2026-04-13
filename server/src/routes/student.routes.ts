@@ -5,6 +5,7 @@ import {
   analyzeResume,
   getReadiness,
   analyzeReadiness,
+  submitReadinessTest,
   getDSAProblems,
   getProblemById,
   submitSolution,
@@ -39,6 +40,7 @@ router.post('/resume/analyze', analyzeResume);
 // Readiness
 router.get('/readiness', getReadiness);
 router.post('/readiness/analyze', analyzeReadiness);
+router.post('/readiness/test', submitReadinessTest);
 
 // DSA Practice
 router.get('/dsa/problems', getDSAProblems);

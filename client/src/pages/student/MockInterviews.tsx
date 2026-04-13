@@ -70,17 +70,22 @@ const MockInterviews: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom fontWeight="bold">
+      <Typography variant="h3" gutterBottom fontWeight="900" sx={{
+        background: 'linear-gradient(135deg, #00d4ff 0%, #6c63ff 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        letterSpacing: '-1px'
+      }}>
         Mock Interviews
       </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
+      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4, fontSize: '1.1rem' }}>
         Practice interviews with AI-powered feedback and analysis
       </Typography>
 
       <Grid container spacing={3}>
         {/* Start Interview */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Start New Interview
             </Typography>
@@ -115,12 +120,12 @@ const MockInterviews: React.FC = () => {
 
         {/* Interview Types Info */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Interview Types
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Card variant="outlined" sx={{ mb: 2 }}>
+              <Card className="glass-card" variant="outlined" sx={{ mb: 2, borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" gap={2} mb={1}>
                     <Chip label="Technical" color="primary" size="small" />
@@ -130,7 +135,7 @@ const MockInterviews: React.FC = () => {
                   </Typography>
                 </CardContent>
               </Card>
-              <Card variant="outlined" sx={{ mb: 2 }}>
+              <Card className="glass-card" variant="outlined" sx={{ mb: 2, borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" gap={2} mb={1}>
                     <Chip label="HR" color="success" size="small" />
@@ -140,7 +145,7 @@ const MockInterviews: React.FC = () => {
                   </Typography>
                 </CardContent>
               </Card>
-              <Card variant="outlined">
+              <Card className="glass-card" variant="outlined" sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" gap={2} mb={1}>
                     <Chip label="Managerial" color="warning" size="small" />
@@ -156,7 +161,7 @@ const MockInterviews: React.FC = () => {
 
         {/* Past Interviews */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} className="glass-card" sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Past Interviews
             </Typography>

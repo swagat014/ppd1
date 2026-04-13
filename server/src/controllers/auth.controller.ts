@@ -3,6 +3,7 @@ import * as jwt from 'jsonwebtoken';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
 import Profile from '../models/Profile.model';
+import SystemSettings from '../models/SystemSettings.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 
@@ -20,6 +21,12 @@ const generateToken = (id: string): string => {
 export const register = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { email, password, role, profile } = req.body;
+
+    const settings = await SystemSettings.findOne();
+    if (settings && settings.allowRegistration === false) {
+      res.status(403).json({ success: false, message: 'User registration is currently disabled.' });
+      return;
+    }
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -40,6 +47,40 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
     if (user.role === 'student') {
       await Student.create({
         userId: user._id,
+        practice: {
+          dsa: {
+            totalProblems: 0,
+            solvedProblems: 0,
+            accuracy: 0,
+            companySpecific: new Map(),
+            patternBased: new Map(),
+            recentActivity: [],
+          },
+          aptitude: {
+            totalTests: 0,
+            completedTests: 0,
+            averageScore: 0,
+            companySpecific: new Map(),
+            weakAreas: [],
+            recentActivity: [],
+          },
+        },
+        readiness: {
+          overallScore: 0,
+          technicalScore: 0,
+          aptitudeScore: 0,
+          communicationScore: 0,
+        },
+        analytics: {
+          dailyProgress: [],
+          weeklyGoals: {
+            dsaProblems: 10,
+            aptitudeTests: 3,
+            studyHours: 20,
+          },
+          achievements: [],
+          testHistory: [],
+        },
       });
     }
 

@@ -15,7 +15,7 @@ import {
   ListItemText,
   Alert,
 } from '@mui/material';
-import { Assessment, TrendingUp, CheckCircle } from '@mui/icons-material';
+import { Assessment, TrendingUp, CheckCircle, Timer } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { RadialBarChart, RadialBar, Legend, ResponsiveContainer } from 'recharts';
@@ -89,51 +89,64 @@ const ReadinessAnalyzer: React.FC = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
-          <Typography variant="h4" gutterBottom fontWeight="bold">
+          <Typography variant="h3" gutterBottom fontWeight="900" sx={{
+            background: 'linear-gradient(135deg, #00d4ff 0%, #6c63ff 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-1px'
+          }}>
             Placement Readiness Analyzer
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
             Comprehensive analysis of your placement readiness
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={analyzing ? <CircularProgress size={20} /> : <Assessment />}
-          onClick={handleAnalyze}
-          disabled={analyzing}
-        >
-          {analyzing ? 'Analyzing...' : 'Analyze Readiness'}
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            size="large"
+            startIcon={<Timer />}
+            onClick={() => window.location.href = '/student/readiness/test'}
+          >
+            Take 30-Min Test
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={analyzing ? <CircularProgress size={20} /> : <Assessment />}
+            onClick={handleAnalyze}
+            disabled={analyzing}
+          >
+            {analyzing ? 'Analyzing...' : 'Analyze Readiness'}
+          </Button>
+        </Box>
       </Box>
 
       {readiness ? (
         <Grid container spacing={3}>
           {/* Overall Score */}
           <Grid item xs={12}>
-            <Paper elevation={3} sx={{ p: 4, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-              <Typography variant="h6" gutterBottom>
-                Overall Readiness Score
-              </Typography>
-              <Typography variant="h1" fontWeight="bold" gutterBottom>
-                {readiness.overallScore}%
-              </Typography>
-              <Chip
-                label={getReadinessLevel(readiness.overallScore)}
-                color={getScoreColor(readiness.overallScore) as 'success' | 'warning' | 'error'}
-                sx={{ bgcolor: 'white', color: 'primary.main', fontWeight: 'bold' }}
-              />
-              <LinearProgress
-                variant="determinate"
-                value={readiness.overallScore}
-                sx={{ mt: 3, height: 12, borderRadius: 6, bgcolor: 'rgba(255,255,255,0.3)' }}
-              />
+            <Paper elevation={0} className="glass-card" sx={{ p: 4, textAlign: 'center', background: 'linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(108,99,255,0.15) 100%)', border: '1px solid rgba(0, 212, 255, 0.3)', position: 'relative', overflow: 'hidden' }}>
+              <Box sx={{ position: 'absolute', top: '-50%', left: '-5%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(108,99,255,0.2) 0%, transparent 70%)', filter: 'blur(30px)', zIndex: 0 }} />
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography variant="h6" gutterBottom color="text.secondary" fontWeight="600">
+                  Overall Readiness Score
+                </Typography>
+                <Typography variant="h1" fontWeight="900" gutterBottom sx={{ color: '#fff', textShadow: '0 0 20px rgba(0,212,255,0.5)' }}>
+                  {readiness.overallScore}%
+                </Typography>
+                <Chip
+                  label={getReadinessLevel(readiness.overallScore)}
+                  color={getScoreColor(readiness.overallScore) as 'success' | 'warning' | 'error'}
+                  sx={{ color: '#fff', fontWeight: 'bold', fontSize: '1rem', px: 1, py: 2, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' }}
+                />
+              </Box>
             </Paper>
           </Grid>
 
           {/* Score Breakdown */}
           <Grid item xs={12} md={6}>
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={0} className="glass-card" sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
                 Score Breakdown
               </Typography>
@@ -243,7 +256,7 @@ const ReadinessAnalyzer: React.FC = () => {
 
           {/* Recommendations */}
           <Grid item xs={12} md={6}>
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={0} className="glass-card" sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
                 Recommendations
               </Typography>

@@ -42,6 +42,11 @@ export interface IStudent extends Document {
         total: number;
         accuracy: number;
       }>;
+      categoryBased?: Map<string, {
+        solved: number;
+        total: number;
+        accuracy: number;
+      }>;
       recentActivity: Array<{
         problemId: string;
         date: Date;
@@ -104,23 +109,41 @@ export interface IStudent extends Document {
     soft: string[];
     suggested: string[];
   };
-  analytics: {
-    dailyProgress: Array<{
-      date: Date;
-      dsaProblems: number;
-      aptitudeTests: number;
-      studyHours: number;
-    }>;
-    weeklyGoals: {
-      dsaProblems: number;
-      aptitudeTests: number;
-      studyHours: number;
+    analytics: {
+      dailyProgress: Array<{
+        date: Date;
+        dsaProblems: number;
+        aptitudeTests: number;
+        studyHours: number;
+      }>;
+      weeklyGoals: {
+        dsaProblems: number;
+        aptitudeTests: number;
+        studyHours: number;
+      };
+      achievements: string[];
+      streak: number;
+      rank: number;
+      totalStudents: number;
+      testHistory?: Array<{
+        type: string;
+        score: number;
+        aptitudeScore: number;
+        technicalScore: number;
+        codingScore: number;
+        timeTaken: number;
+        date: Date;
+      }>;
     };
-    achievements: string[];
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
+    placement: {
+      status: 'Not Placed' | 'Placed' | 'Offered';
+      company?: string;
+      package?: number;
+      date?: Date;
+    };
+    createdAt: Date;
+    updatedAt: Date;
+  }
 
 const studentSchema = new Schema<IStudent>(
   {
@@ -272,7 +295,26 @@ const studentSchema = new Schema<IStudent>(
         studyHours: { type: Number, default: 20 },
       },
       achievements: [String],
+      testHistory: [{
+        type: String,
+        score: Number,
+        aptitudeScore: Number,
+        technicalScore: Number,
+        codingScore: Number,
+        timeTaken: Number,
+        date: Date,
+      }],
     },
+    placement: {
+      status: {
+        type: String,
+        enum: ['Not Placed', 'Placed', 'Offered'],
+        default: 'Not Placed'
+      },
+      company: String,
+      package: Number,
+      date: Date
+    }
   },
   {
     timestamps: true,

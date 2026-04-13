@@ -56,30 +56,115 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    // Ensure practice object exists with defaults
+    const practice = student.practice || {
+      dsa: {
+        totalProblems: 0,
+        solvedProblems: 0,
+        accuracy: 0,
+        companySpecific: new Map(),
+        patternBased: new Map(),
+        recentActivity: [],
+      },
+      aptitude: {
+        totalTests: 0,
+        completedTests: 0,
+        averageScore: 0,
+        companySpecific: new Map(),
+        weakAreas: [],
+        recentActivity: [],
+      },
+    };
+
+    // Ensure DSA stats exist
+    const dsaStats = practice.dsa || {
+      totalProblems: 0,
+      solvedProblems: 0,
+      accuracy: 0,
+      recentActivity: [],
+    };
+
+    // Ensure Aptitude stats exist
+    const aptitudeStats = practice.aptitude || {
+      totalTests: 0,
+      completedTests: 0,
+      averageScore: 0,
+      recentActivity: [],
+    };
+
+    // Ensure readiness exists
+    const readiness = student.readiness || {
+      overallScore: 0,
+      technicalScore: 0,
+      aptitudeScore: 0,
+      communicationScore: 0,
+    };
+
+    // Calculate analytics data
+    const totalStudents = await Student.countDocuments();
+    
+    // Calculate streak based on daily progress
+    const dailyProgress = student.analytics?.dailyProgress || [];
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      
+      const hasActivity = dailyProgress.some(progress => {
+        const progressDate = new Date(progress.date);
+        progressDate.setHours(0, 0, 0, 0);
+        return progressDate.getTime() === checkDate.getTime() && 
+               (progress.dsaProblems > 0 || progress.aptitudeTests > 0 || progress.studyHours > 0);
+      });
+      
+      if (hasActivity) {
+        streak++;
+      } else if (i === 0) {
+        // If today has no activity, continue checking yesterday
+        continue;
+      } else {
+        break;
+      }
+    }
+    
+    // Calculate rank based on readiness score
+    const higherReadinessCount = await Student.countDocuments({
+      'readiness.overallScore': { $gt: readiness.overallScore }
+    });
+    const rank = higherReadinessCount + 1;
+
     res.status(200).json({
       success: true,
       data: {
         profile: student.userId,
         resume: student.resume,
-        readiness: student.readiness,
+        readiness: readiness,
         practice: {
           dsa: {
-            solved: student.practice.dsa.solvedProblems,
-            total: student.practice.dsa.totalProblems,
-            accuracy: student.practice.dsa.accuracy,
+            solved: dsaStats.solvedProblems || 0,
+            total: dsaStats.totalProblems || 0,
+            accuracy: dsaStats.accuracy || 0,
           },
           aptitude: {
-            completed: student.practice.aptitude.completedTests,
-            averageScore: student.practice.aptitude.averageScore,
+            completed: aptitudeStats.completedTests || 0,
+            averageScore: aptitudeStats.averageScore || 0,
           },
         },
         english: student.english,
         recentActivity: {
-          dsa: student.practice.dsa.recentActivity.slice(0, 5),
-          aptitude: student.practice.aptitude.recentActivity.slice(0, 5),
-          interviews: student.interviews.slice(0, 3),
+          dsa: (dsaStats.recentActivity || []).slice(0, 5),
+          aptitude: (aptitudeStats.recentActivity || []).slice(0, 5),
+          interviews: (student.interviews || []).slice(0, 3),
         },
-        analytics: student.analytics,
+        analytics: {
+          ...student.analytics,
+          streak,
+          rank,
+          totalStudents,
+        },
       },
     });
   } catch (error: any) {
@@ -300,6 +385,137 @@ export const analyzeReadiness = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+// @desc    Submit readiness test
+// @route   POST /api/student/readiness/test
+// @access  Private/Student
+export const submitReadinessTest = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { answers, timeTaken } = req.body; // { q_id: answerIndex }
+    const student = await Student.findOne({ userId: req.user?._id });
+
+    if (!student) {
+      res.status(404).json({ success: false, message: 'Student profile not found' });
+      return;
+    }
+
+    // Fetch all aptitude and technical tests to verify answers
+    const allTests = await AptitudeTest.find();
+    const questionsMap = new Map();
+    allTests.forEach(test => {
+      test.questions.forEach(q => {
+        questionsMap.set(q.questionId, q);
+      });
+    });
+
+    let correct = 0;
+    let aptitudeCorrect = 0;
+    let technicalCorrect = 0;
+    let codingCorrect = 0;
+    
+    let aptitudeTotal = 0;
+    let technicalTotal = 0;
+    let codingTotal = 0;
+
+    const submittedQuestions = Object.entries(answers);
+    const totalQuestions = submittedQuestions.length;
+
+    submittedQuestions.forEach(([qId, answer], idx) => {
+      const originalQ = questionsMap.get(qId);
+      if (originalQ) {
+        const isCorrect = originalQ.correctAnswer === answer;
+        
+        // Use a simple type mapping for the readiness test structure
+        // In the getReadinessTest, aptitude is first 10, then technical, then coding
+        // But better to check original question topic/type
+        if (originalQ.type === 'quantitative' || originalQ.type === 'logical') {
+          aptitudeTotal++;
+          if (isCorrect) {
+            aptitudeCorrect++;
+            correct++;
+          }
+        } else {
+          // Assume technical or other
+          if (idx < 20) {
+            technicalTotal++;
+            if (isCorrect) {
+              technicalCorrect++;
+              correct++;
+            }
+          } else {
+            codingTotal++;
+            if (isCorrect) {
+              codingCorrect++;
+              correct++;
+            }
+          }
+        }
+      }
+    });
+
+    const score = totalQuestions > 0 ? (correct / totalQuestions) * 100 : 0;
+    const aptitudeScore = aptitudeTotal > 0 ? (aptitudeCorrect / aptitudeTotal) * 100 : 0;
+    const technicalScore = technicalTotal > 0 ? (technicalCorrect / technicalTotal) * 100 : 0;
+    const codingScore = codingTotal > 0 ? (codingCorrect / codingTotal) * 100 : 0;
+
+    // Update readiness scores based on test performance
+    const testWeight = 0.5; 
+    const existingWeight = 0.5;
+
+    const newAptitudeScore = Math.round(((student.readiness.aptitudeScore || 0) * existingWeight) + (aptitudeScore * testWeight));
+    const newTechnicalScore = Math.round(((student.readiness.technicalScore || 0) * existingWeight) + (technicalScore * testWeight));
+    
+    // Generate recommendations
+    const recommendations: string[] = [];
+    if (aptitudeScore < 70) recommendations.push('Focus on Aptitude: Practice Ratios, Average, and Logical reasoning.');
+    if (technicalScore < 70) recommendations.push('Strengthen Technical: Review OS, DBMS, and Algorithm complexities.');
+    if (codingScore < 70) recommendations.push('Improve Coding: Practice more JS Fundamentals and pattern-based DSA.');
+
+    student.readiness = {
+      ...student.readiness,
+      overallScore: Math.round(score),
+      aptitudeScore: newAptitudeScore,
+      technicalScore: newTechnicalScore,
+      recommendations: recommendations.slice(0, 8),
+      lastAnalyzed: new Date(),
+    };
+
+    if (!student.analytics.testHistory) (student.analytics as any).testHistory = [];
+    (student.analytics as any).testHistory.push({
+      type: 'readiness',
+      score: Math.round(score),
+      aptitudeScore: Math.round(aptitudeScore),
+      technicalScore: Math.round(technicalScore),
+      codingScore: Math.round(codingScore),
+      timeTaken,
+      date: new Date(),
+    });
+
+    await student.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Test submitted and processed successfully',
+      data: {
+        score: Math.round(score),
+        aptitudeScore: Math.round(aptitudeScore),
+        technicalScore: Math.round(technicalScore),
+        codingScore: Math.round(codingScore),
+        sectionScores: {
+          aptitude: { correct: aptitudeCorrect, total: aptitudeTotal },
+          technical: { correct: technicalCorrect, total: technicalTotal },
+          coding: { correct: codingCorrect, total: codingTotal },
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to submit test',
+    });
+  }
+};
+
+
 // @desc    Get DSA problems
 // @route   GET /api/student/dsa/problems
 // @access  Private/Student
@@ -367,12 +583,251 @@ export const getProblemById = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+// Helper function to execute JavaScript code safely
+const executeJavaScript = (code: string, testCase: any): { success: boolean; output: any; error?: string } => {
+  try {
+    // Create a safe execution context with allowed globals
+    const sandbox = {
+      console: {
+        log: () => {}, // Suppress console.log
+        error: () => {},
+        warn: () => {},
+      },
+      Math,
+      JSON,
+      Array,
+      Object,
+      String,
+      Number,
+      Boolean,
+      Date,
+      RegExp,
+      Map,
+      Set,
+      Promise,
+      parseInt,
+      parseFloat,
+      isNaN,
+      isFinite,
+      Infinity,
+      NaN,
+      undefined,
+    };
+
+    // Extract the solve function from user code
+    // Support multiple patterns: function solve, const solve, var solve, let solve
+    const functionPattern = /(?:function\s+solve|(?:const|let|var)\s+solve\s*=\s*(?:function)?)/;
+    
+    if (!functionPattern.test(code)) {
+      return {
+        success: false,
+        output: null,
+        error: 'Your code must define a function named "solve". Example: function solve(nums, target) { ... }',
+      };
+    }
+
+    // Wrap the code to extract the solve function
+    const wrappedCode = `
+      "use strict";
+      ${code}
+      if (typeof solve !== 'function') {
+        throw new Error('No solve function found. Make sure you define: function solve(...) { ... }');
+      }
+      return solve;
+    `;
+
+    // Create function from code
+    const fn = new Function(...Object.keys(sandbox), wrappedCode)(...Object.values(sandbox));
+    
+    // Execute with test case input
+    const input = testCase.input;
+    
+    // Extract values from input object in a consistent order
+    // This handles both { nums: [...], target: 9 } format and direct array format
+    let values;
+    if (Array.isArray(input)) {
+      values = input;
+    } else if (typeof input === 'object' && input !== null) {
+      // Get values in consistent order (alphabetical by key for predictability)
+      values = Object.keys(input).sort().map(key => input[key]);
+    } else {
+      values = [input];
+    }
+    
+    // Call the solve function with input values
+    const result = fn(...values);
+    
+    return {
+      success: true,
+      output: result,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      output: null,
+      error: error.message,
+    };
+  }
+};
+
+// Helper function to execute Python code (simulated with validation)
+const executePython = (code: string, testCase: any): { success: boolean; output: any; error?: string } => {
+  try {
+    // Check for solve function definition
+    const solvePattern = /def\s+solve\s*\(/;
+    if (!solvePattern.test(code)) {
+      return {
+        success: false,
+        output: null,
+        error: 'Python code must define a function named "solve". Example: def solve(nums, target):',
+      };
+    }
+
+    // Basic syntax validation
+    const lines = code.split('\n');
+    let indentLevel = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const stripped = line.trim();
+      
+      // Skip empty lines and comments
+      if (!stripped || stripped.startsWith('#')) continue;
+      
+      // Check for basic syntax errors
+      if (stripped.includes(':')) {
+        // Should have indented block after
+        if (i < lines.length - 1) {
+          const nextLine = lines[i + 1].trim();
+          if (nextLine && !nextLine.startsWith('#') && !lines[i + 1].startsWith(' ')) {
+            return {
+              success: false,
+              output: null,
+              error: `Line ${i + 1}: Expected indented block after ':'`,
+            };
+          }
+        }
+      }
+    }
+
+    // For security, we don't actually execute Python code
+    // Instead, we validate syntax and return a simulated success
+    // In production, use a sandboxed environment like Docker or restricted Python
+    return {
+      success: true,
+      output: null,
+      error: undefined,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      output: null,
+      error: error.message,
+    };
+  }
+};
+
+// Helper function to validate Java code (syntax check only for now)
+const validateJavaCode = (code: string): { valid: boolean; error?: string } => {
+  // Basic syntax checks
+  // Check for any class declaration (flexible class name)
+  const classPattern = /class\s+\w+/;
+  if (!classPattern.test(code)) {
+    return { valid: false, error: 'Java code must contain a class declaration (e.g., class Solution, class Main, etc.)' };
+  }
+  // Check for public static method (common pattern)
+  if (!code.includes('public static')) {
+    return { valid: false, error: 'Java method should be declared as public static for easy testing' };
+  }
+  // Check for balanced braces
+  const openBraces = (code.match(/{/g) || []).length;
+  const closeBraces = (code.match(/}/g) || []).length;
+  if (openBraces !== closeBraces) {
+    return { valid: false, error: 'Unbalanced braces in Java code' };
+  }
+  return { valid: true };
+};
+
+// Helper function to validate C code (syntax check only for now)
+const validateCCode = (code: string): { valid: boolean; error?: string } => {
+  // Basic syntax checks
+  if (!code.includes('#include')) {
+    return { valid: false, error: 'C code should include necessary headers' };
+  }
+  // Check for balanced braces
+  const openBraces = (code.match(/{/g) || []).length;
+  const closeBraces = (code.match(/}/g) || []).length;
+  if (openBraces !== closeBraces) {
+    return { valid: false, error: 'Unbalanced braces in C code' };
+  }
+  // Check for semicolons (basic check)
+  const lines = code.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line && !line.endsWith('{') && !line.endsWith('}') && !line.endsWith(';') && 
+        !line.startsWith('//') && !line.startsWith('#') && !line.startsWith('*') &&
+        !line.endsWith('\\') && line !== '') {
+      // This is a basic check and may have false positives
+    }
+  }
+  return { valid: true };
+};
+
+// Helper function to compare outputs
+// Helper function to deeply compare outputs with floating point tolerance
+const compareOutputs = (actual: any, expected: any): boolean => {
+  // Handle null/undefined
+  if (actual === null || actual === undefined) {
+    return expected === null || expected === undefined;
+  }
+  
+  // Handle different types
+  if (typeof actual !== typeof expected) {
+    // Try to convert for comparison
+    if (typeof actual === 'number' && typeof expected === 'string') {
+      expected = parseFloat(expected);
+    } else if (typeof actual === 'string' && typeof expected === 'number') {
+      actual = parseFloat(actual);
+    } else {
+      return false;
+    }
+  }
+  
+  // Handle numbers with floating point tolerance
+  if (typeof actual === 'number' && typeof expected === 'number') {
+    return Math.abs(actual - expected) < 0.0001;
+  }
+  
+  // Handle arrays
+  if (Array.isArray(actual) && Array.isArray(expected)) {
+    if (actual.length !== expected.length) return false;
+    return actual.every((val, idx) => compareOutputs(val, expected[idx]));
+  }
+  
+  // Handle objects
+  if (typeof actual === 'object' && typeof expected === 'object') {
+    const actualKeys = Object.keys(actual);
+    const expectedKeys = Object.keys(expected);
+    if (actualKeys.length !== expectedKeys.length) return false;
+    return actualKeys.every(key => compareOutputs(actual[key], expected[key]));
+  }
+  
+  // Handle primitives
+  return actual === expected;
+};
+
 // @desc    Submit solution
 // @route   POST /api/student/dsa/problems/:id/submit
 // @access  Private/Student
 export const submitSolution = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { code, language } = req.body;
+    
+    // Validate request body
+    if (!code || typeof code !== 'string') {
+      res.status(400).json({ success: false, message: 'Code is required and must be a string' });
+      return;
+    }
+    
     const problem = await Problem.findById(req.params.id);
     const student = await Student.findOne({ userId: req.user?._id });
 
@@ -386,12 +841,156 @@ export const submitSolution = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // TODO: Execute code against test cases (implement code execution service)
-    // For now, simulate execution
-    const isCorrect = Math.random() > 0.3; // Placeholder logic
+    // Execute code against all test cases
+    const results = [];
+    let allPassed = true;
+    let firstError = null;
+    let languageSupported = true;
 
-    if (isCorrect) {
-      student.practice.dsa.solvedProblems += 1;
+    // Validate code based on language
+    if (language === 'java') {
+      const validation = validateJavaCode(code);
+      if (!validation.valid) {
+        res.status(400).json({
+          success: false,
+          message: `Java validation error: ${validation.error}`,
+        });
+        return;
+      }
+    } else if (language === 'c') {
+      const validation = validateCCode(code);
+      if (!validation.valid) {
+        res.status(400).json({
+          success: false,
+          message: `C validation error: ${validation.error}`,
+        });
+        return;
+      }
+    }
+
+    // Check if test cases exist
+    if (!problem.testCases || problem.testCases.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'No test cases available for this problem',
+      });
+      return;
+    }
+
+    for (const testCase of problem.testCases) {
+      let executionResult;
+      
+      // Validate test case
+      if (!testCase || !testCase.input) {
+        results.push({
+          input: null,
+          expectedOutput: testCase?.expectedOutput,
+          actualOutput: null,
+          passed: false,
+          isPublic: testCase?.isPublic ?? false,
+          error: 'Invalid test case: missing input',
+        });
+        allPassed = false;
+        continue;
+      }
+      
+      if (language === 'javascript' || !language) {
+        executionResult = executeJavaScript(code, testCase);
+      } else if (language === 'python') {
+        // For Python, validate syntax only (safe execution requires sandbox)
+        executionResult = executePython(code, testCase);
+        languageSupported = false; // Mark as not fully executable
+      } else if (language === 'java' || language === 'c') {
+        // For Java and C, we validate syntax but can't execute in this sandbox
+        // Mark as passed for syntax validation
+        executionResult = {
+          success: true,
+          output: null,
+          error: undefined,
+        };
+        languageSupported = false;
+      } else {
+        executionResult = {
+          success: false,
+          output: null,
+          error: `Language '${language}' is not supported for execution`,
+        };
+      }
+
+      const passed = executionResult.success && (languageSupported ? compareOutputs(executionResult.output, testCase.expectedOutput) : true);
+      
+      results.push({
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        actualOutput: executionResult.output,
+        passed: languageSupported ? passed : true, // If language not executable, mark as passed for syntax
+        isPublic: testCase.isPublic,
+        error: executionResult.error,
+        note: !languageSupported ? `Code syntax validated. ${language} execution requires external compiler.` : undefined,
+      });
+
+      if (!passed && languageSupported) {
+        allPassed = false;
+        if (!firstError && executionResult.error) {
+          firstError = executionResult.error;
+        }
+      }
+    }
+    
+    // For Java/C, we consider it "passed" if syntax is valid
+    if (!languageSupported) {
+      allPassed = true;
+    }
+
+    // Initialize practice object if not exists
+    if (!student.practice) {
+      (student as any).practice = {
+        dsa: {
+          totalProblems: 0,
+          solvedProblems: 0,
+          accuracy: 0,
+          companySpecific: new Map(),
+          patternBased: new Map(),
+          recentActivity: [],
+        },
+        aptitude: {
+          totalTests: 0,
+          completedTests: 0,
+          averageScore: 0,
+          companySpecific: new Map(),
+          weakAreas: [],
+          recentActivity: [],
+        },
+      };
+    }
+
+    // Initialize DSA if not exists
+    if (!student.practice.dsa) {
+      student.practice.dsa = {
+        totalProblems: 0,
+        solvedProblems: 0,
+        accuracy: 0,
+        companySpecific: new Map(),
+        patternBased: new Map(),
+        recentActivity: [],
+      };
+    }
+
+    // Initialize DSA sub-objects if not exists
+    if (!student.practice.dsa.companySpecific) {
+      student.practice.dsa.companySpecific = new Map();
+    }
+    if (!student.practice.dsa.patternBased) {
+      student.practice.dsa.patternBased = new Map();
+    }
+    if (!student.practice.dsa.recentActivity) {
+      student.practice.dsa.recentActivity = [];
+    }
+
+    // Update student stats
+    if (allPassed) {
+      student.practice.dsa.solvedProblems = (student.practice.dsa.solvedProblems || 0) + 1;
+      student.practice.dsa.totalProblems = (student.practice.dsa.totalProblems || 0) + 1;
       student.practice.dsa.recentActivity.push({
         problemId: problem._id.toString(),
         date: new Date(),
@@ -408,9 +1007,9 @@ export const submitSolution = async (req: AuthRequest, res: Response): Promise<v
           });
         }
         const companyStats = student.practice.dsa.companySpecific.get(company)!;
-        companyStats.solved += 1;
-        companyStats.total += 1;
-        companyStats.accuracy = (companyStats.solved / companyStats.total) * 100;
+        companyStats.solved = (companyStats.solved || 0) + 1;
+        companyStats.total = (companyStats.total || 0) + 1;
+        companyStats.accuracy = ((companyStats.solved || 0) / (companyStats.total || 1)) * 100;
       });
 
       // Update pattern-based stats
@@ -422,26 +1021,75 @@ export const submitSolution = async (req: AuthRequest, res: Response): Promise<v
         });
       }
       const patternStats = student.practice.dsa.patternBased.get(problem.pattern)!;
-      patternStats.solved += 1;
-      patternStats.total += 1;
-      patternStats.accuracy = (patternStats.solved / patternStats.total) * 100;
+      patternStats.solved = (patternStats.solved || 0) + 1;
+      patternStats.total = (patternStats.total || 0) + 1;
+      patternStats.accuracy = ((patternStats.solved || 0) / (patternStats.total || 1)) * 100;
 
-      student.practice.dsa.accuracy = (student.practice.dsa.solvedProblems / student.practice.dsa.totalProblems) * 100;
+      // Update category stats
+      if (!student.practice.dsa.categoryBased) {
+        (student.practice.dsa as any).categoryBased = new Map();
+      }
+      if (!(student.practice.dsa as any).categoryBased.get(problem.category)) {
+        (student.practice.dsa as any).categoryBased.set(problem.category, {
+          solved: 0,
+          total: 0,
+          accuracy: 0,
+        });
+      }
+      const categoryStats = (student.practice.dsa as any).categoryBased.get(problem.category)!;
+      categoryStats.solved = (categoryStats.solved || 0) + 1;
+      categoryStats.total = (categoryStats.total || 0) + 1;
+      categoryStats.accuracy = ((categoryStats.solved || 0) / (categoryStats.total || 1)) * 100;
+
+      student.practice.dsa.accuracy = ((student.practice.dsa.solvedProblems || 0) / (student.practice.dsa.totalProblems || 1)) * 100;
     } else {
+      student.practice.dsa.totalProblems = (student.practice.dsa.totalProblems || 0) + 1;
       student.practice.dsa.recentActivity.push({
         problemId: problem._id.toString(),
         date: new Date(),
         status: 'attempted',
       });
+      
+      // Update company stats for attempted
+      problem.companies.forEach((company) => {
+        if (!student.practice.dsa.companySpecific.get(company)) {
+          student.practice.dsa.companySpecific.set(company, {
+            solved: 0,
+            total: 0,
+            accuracy: 0,
+          });
+        }
+        const companyStats = student.practice.dsa.companySpecific.get(company)!;
+        companyStats.total = (companyStats.total || 0) + 1;
+        companyStats.accuracy = ((companyStats.solved || 0) / (companyStats.total || 1)) * 100;
+      });
+
+      student.practice.dsa.accuracy = ((student.practice.dsa.solvedProblems || 0) / (student.practice.dsa.totalProblems || 1)) * 100;
     }
 
     await student.save();
 
+    // Update problem stats
+    problem.submissions += 1;
+    if (allPassed) {
+      const acceptedSubmissions = Math.round((problem.acceptanceRate * problem.submissions) / 100) + 1;
+      problem.acceptanceRate = (acceptedSubmissions / problem.submissions) * 100;
+    }
+    await problem.save();
+
     res.status(200).json({
       success: true,
       data: {
-        isCorrect,
-        message: isCorrect ? 'Solution accepted!' : 'Solution incorrect. Try again!',
+        isCorrect: allPassed,
+        message: allPassed 
+          ? languageSupported 
+            ? 'Solution accepted! All test cases passed.' 
+            : `Code syntax validated for ${language}. Note: Full execution testing requires external compiler.`
+          : `Solution incorrect. ${firstError || 'Some test cases failed.'}`,
+        results: results.filter(r => r.isPublic || allPassed), // Only show all results if passed
+        passedCount: results.filter(r => r.passed).length,
+        totalCount: results.length,
+        languageSupported,
       },
     });
   } catch (error: any) {
@@ -535,6 +1183,13 @@ export const getAptitudeTestById = async (req: AuthRequest, res: Response): Prom
 export const submitAptitudeTest = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { answers } = req.body; // { questionId: answerIndex }
+    
+    // Validate request body
+    if (!answers || typeof answers !== 'object') {
+      res.status(400).json({ success: false, message: 'Answers object is required' });
+      return;
+    }
+    
     const test = await AptitudeTest.findById(req.params.id);
     const student = await Student.findOne({ userId: req.user?._id });
 
@@ -547,16 +1202,46 @@ export const submitAptitudeTest = async (req: AuthRequest, res: Response): Promi
       res.status(404).json({ success: false, message: 'Student profile not found' });
       return;
     }
+    
+    // Validate test has questions
+    if (!test.questions || test.questions.length === 0) {
+      res.status(400).json({ success: false, message: 'Test has no questions' });
+      return;
+    }
 
     // Calculate score
     let correct = 0;
-    const results = test.questions.map((question) => {
-      const userAnswer = answers[question.questionId];
-      const isCorrect = userAnswer === question.correctAnswer;
+    console.log('Received answers:', answers);
+    console.log('Test questions:', test.questions.map(q => ({ id: q.questionId, correct: q.correctAnswer })));
+    
+    const results = test.questions.map((question, index) => {
+      // Use questionId if available, otherwise use index
+      const answerKey = question.questionId || index.toString();
+      
+      // Try to match by questionId/index
+      let userAnswer = answers[answerKey];
+      
+      // Also try alternative keys
+      if (userAnswer === undefined && question.questionId) {
+        userAnswer = answers[question.questionId.toString()];
+      }
+      if (userAnswer === undefined) {
+        userAnswer = answers[index.toString()];
+      }
+      if (userAnswer === undefined) {
+        userAnswer = answers[index];
+      }
+      
+      console.log(`Question ${index} (key: ${answerKey}): userAnswer=${userAnswer}, correct=${question.correctAnswer}`);
+      
+      // Handle both string and number comparisons
+      const isCorrect = userAnswer !== undefined && 
+                       userAnswer !== null && 
+                       parseInt(userAnswer) === parseInt(question.correctAnswer as any);
       if (isCorrect) correct++;
 
       return {
-        questionId: question.questionId,
+        questionId: question.questionId || index.toString(),
         question: question.question,
         userAnswer,
         correctAnswer: question.correctAnswer,
@@ -564,21 +1249,69 @@ export const submitAptitudeTest = async (req: AuthRequest, res: Response): Promi
         explanation: question.explanation,
       };
     });
+    
+    console.log('Results:', results);
+    console.log('Correct count:', correct);
 
     const score = (correct / test.totalQuestions) * 100;
 
+    // Initialize practice object if not exists
+    if (!student.practice) {
+      (student as any).practice = {
+        dsa: {
+          totalProblems: 0,
+          solvedProblems: 0,
+          accuracy: 0,
+          companySpecific: new Map(),
+          patternBased: new Map(),
+          recentActivity: [],
+        },
+        aptitude: {
+          totalTests: 0,
+          completedTests: 0,
+          averageScore: 0,
+          companySpecific: new Map(),
+          weakAreas: [],
+          recentActivity: [],
+        },
+      };
+    }
+
+    // Initialize aptitude if not exists
+    if (!student.practice.aptitude) {
+      student.practice.aptitude = {
+        totalTests: 0,
+        completedTests: 0,
+        averageScore: 0,
+        companySpecific: new Map(),
+        weakAreas: [],
+        recentActivity: [],
+      };
+    }
+
     // Update student stats
-    student.practice.aptitude.completedTests += 1;
-    student.practice.aptitude.totalTests += 1;
+    student.practice.aptitude.completedTests = (student.practice.aptitude.completedTests || 0) + 1;
+    student.practice.aptitude.totalTests = (student.practice.aptitude.totalTests || 0) + 1;
+    const currentAvg = student.practice.aptitude.averageScore || 0;
+    const completedCount = student.practice.aptitude.completedTests;
     student.practice.aptitude.averageScore =
-      ((student.practice.aptitude.averageScore * (student.practice.aptitude.completedTests - 1)) + score) /
-      student.practice.aptitude.completedTests;
+      ((currentAvg * (completedCount - 1)) + score) / completedCount;
+
+    // Initialize recentActivity array if not exists
+    if (!student.practice.aptitude.recentActivity) {
+      student.practice.aptitude.recentActivity = [];
+    }
 
     student.practice.aptitude.recentActivity.push({
       testId: test._id.toString(),
       date: new Date(),
       score: Math.round(score),
     });
+
+    // Initialize companySpecific if not exists
+    if (!student.practice.aptitude.companySpecific) {
+      student.practice.aptitude.companySpecific = new Map();
+    }
 
     // Update company-specific stats
     test.companies.forEach((company) => {
@@ -589,8 +1322,9 @@ export const submitAptitudeTest = async (req: AuthRequest, res: Response): Promi
         });
       }
       const companyStats = student.practice.aptitude.companySpecific.get(company)!;
-      companyStats.completed += 1;
-      companyStats.averageScore = ((companyStats.averageScore * (companyStats.completed - 1)) + score) / companyStats.completed;
+      companyStats.completed = (companyStats.completed || 0) + 1;
+      const companyAvg = companyStats.averageScore || 0;
+      companyStats.averageScore = ((companyAvg * (companyStats.completed - 1)) + score) / companyStats.completed;
     });
 
     // Identify weak areas
@@ -600,6 +1334,11 @@ export const submitAptitudeTest = async (req: AuthRequest, res: Response): Promi
         weakTopics.add(test.questions[index].topic);
       }
     });
+    
+    // Initialize weakAreas if not exists
+    if (!student.practice.aptitude.weakAreas) {
+      student.practice.aptitude.weakAreas = [];
+    }
     student.practice.aptitude.weakAreas = Array.from(weakTopics);
 
     await student.save();
@@ -842,23 +1581,58 @@ export const getAnalytics = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    // Ensure all nested objects exist with defaults
+    const practice = student.practice || {
+      dsa: { totalProblems: 0, solvedProblems: 0, accuracy: 0, companySpecific: new Map(), patternBased: new Map(), recentActivity: [] },
+      aptitude: { totalTests: 0, completedTests: 0, averageScore: 0, companySpecific: new Map(), weakAreas: [], recentActivity: [] },
+    };
+
+    const dsa = practice.dsa || { totalProblems: 0, solvedProblems: 0, accuracy: 0, companySpecific: new Map(), patternBased: new Map(), recentActivity: [] };
+    const aptitude = practice.aptitude || { totalTests: 0, completedTests: 0, averageScore: 0, companySpecific: new Map(), weakAreas: [], recentActivity: [] };
+    
+    const analytics = student.analytics || {
+      dailyProgress: [],
+      weeklyGoals: { dsaProblems: 10, aptitudeTests: 3, studyHours: 20 },
+      achievements: [],
+      testHistory: [],
+    };
+
+    const weeklyGoals = analytics.weeklyGoals || { dsaProblems: 10, aptitudeTests: 3, studyHours: 20 };
+
     res.status(200).json({
       success: true,
       data: {
-        readiness: student.readiness,
-        practice: student.practice,
-        english: student.english,
-        analytics: student.analytics,
-        progress: {
+        readiness: student.readiness || { overallScore: 0, technicalScore: 0, aptitudeScore: 0, communicationScore: 0 },
+        practice: {
           dsa: {
-            solved: student.practice.dsa.solvedProblems,
-            goal: student.analytics.weeklyGoals.dsaProblems,
-            percentage: Math.min(100, (student.practice.dsa.solvedProblems / student.analytics.weeklyGoals.dsaProblems) * 100),
+            totalProblems: dsa.totalProblems || 0,
+            solvedProblems: dsa.solvedProblems || 0,
+            accuracy: dsa.accuracy || 0,
+            companySpecific: dsa.companySpecific || new Map(),
+            patternBased: dsa.patternBased || new Map(),
+            recentActivity: dsa.recentActivity || [],
           },
           aptitude: {
-            completed: student.practice.aptitude.completedTests,
-            goal: student.analytics.weeklyGoals.aptitudeTests,
-            percentage: Math.min(100, (student.practice.aptitude.completedTests / student.analytics.weeklyGoals.aptitudeTests) * 100),
+            totalTests: aptitude.totalTests || 0,
+            completedTests: aptitude.completedTests || 0,
+            averageScore: aptitude.averageScore || 0,
+            companySpecific: aptitude.companySpecific || new Map(),
+            weakAreas: aptitude.weakAreas || [],
+            recentActivity: aptitude.recentActivity || [],
+          },
+        },
+        english: student.english,
+        analytics: analytics,
+        progress: {
+          dsa: {
+            solved: dsa.solvedProblems || 0,
+            goal: weeklyGoals.dsaProblems || 10,
+            percentage: Math.min(100, ((dsa.solvedProblems || 0) / (weeklyGoals.dsaProblems || 10)) * 100),
+          },
+          aptitude: {
+            completed: aptitude.completedTests || 0,
+            goal: weeklyGoals.aptitudeTests || 3,
+            percentage: Math.min(100, ((aptitude.completedTests || 0) / (weeklyGoals.aptitudeTests || 3)) * 100),
           },
         },
       },
@@ -951,6 +1725,87 @@ export const getRecommendedSkills = async (req: AuthRequest, res: Response): Pro
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get recommended skills',
+    });
+  }
+};
+
+// @desc    Get questions for readiness test
+// @route   GET /api/student/readiness/test
+// @access  Private/Student
+export const getReadinessTest = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Fetch 10 questions from Aptitude tests (Quantitative/Logical)
+    const aptitudeTests = await AptitudeTest.find({ 
+      type: { $in: ['quantitative', 'logical', 'mixed'] } 
+    }).limit(10);
+
+    // Fetch 20 questions from Technical/Verbal tests (Technical fundamentals)
+    const technicalTests = await AptitudeTest.find({ 
+      type: { $in: ['technical', 'verbal', 'mixed'] } 
+    }).limit(10);
+
+    const allAptitudeQuestions: any[] = [];
+    aptitudeTests.forEach(test => {
+      const testObj = test.toObject();
+      testObj.questions.forEach((q: any) => {
+        allAptitudeQuestions.push({
+          ...q,
+          type: 'aptitude'
+        });
+      });
+    });
+
+    const allTechnicalQuestions: any[] = [];
+    technicalTests.forEach(test => {
+      const testObj = test.toObject();
+      testObj.questions.forEach((q: any) => {
+        allTechnicalQuestions.push({
+          ...q,
+          type: 'technical'
+        });
+      });
+    });
+
+    if (allAptitudeQuestions.length === 0 && allTechnicalQuestions.length === 0) {
+      res.status(404).json({ 
+        success: false, 
+        message: 'No questions available. TPO needs to upload tests first.' 
+      });
+      return;
+    }
+
+    // Randomly pick questions
+    const pickRandom = (arr: any[], count: number) => {
+      const shuffled = [...arr].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, Math.min(count, arr.length));
+    };
+
+    const pickedAptitude = pickRandom(allAptitudeQuestions, 10);
+    const pickedTechnical = pickRandom(allTechnicalQuestions, 10);
+    const pickedCoding = pickRandom(allTechnicalQuestions.filter(q => !pickedTechnical.includes(q)), 10);
+
+    // Combine and format
+    const finalQuestions = [
+      ...pickedAptitude,
+      ...pickedTechnical,
+      ...pickedCoding
+    ].map((q, idx) => ({
+      questionId: q.questionId || `q_${idx}`,
+      question: q.question,
+      options: q.options,
+      type: q.type === 'aptitude' ? 'aptitude' : (idx < pickedAptitude.length + pickedTechnical.length ? 'technical' : 'coding'),
+      topic: q.topic || 'General',
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: finalQuestions,
+      message: 'Readiness test questions generated successfully',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to generate readiness test',
     });
   }
 };

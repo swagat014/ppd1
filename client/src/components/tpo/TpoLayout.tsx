@@ -31,6 +31,7 @@ import {
   Logout,
   Person,
   Notifications,
+  Business,
 } from '@mui/icons-material';
 
 const drawerWidth = 280;
@@ -85,43 +86,75 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
   };
 
   const drawer = (
-    <Box>
-      <Toolbar sx={{ bgcolor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" noWrap component="div" fontWeight="bold">
-          TPO Dashboard
-        </Typography>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar sx={{ 
+        minHeight: 80, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        background: 'rgba(255, 255, 255, 0.02)'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5 }}>
+          <Business sx={{ fontSize: 28, color: '#00f593' }} />
+          <Typography variant="h6" noWrap component="div" fontWeight="800" sx={{
+            background: 'linear-gradient(135deg, #f0f4ff 0%, #00f593 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '1px'
+          }}>
+            TPO PORTAL
+          </Typography>
+        </Box>
       </Toolbar>
-      <Divider />
-      <List>
-        {menuItems.map((item) => {
-          const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-          return (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton
-                selected={isActive}
-                onClick={() => navigate(item.path)}
-                sx={{
-                  '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    },
-                    '& .MuiListItemIcon-root': {
-                      color: 'white',
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: isActive ? 'white' : 'inherit' }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            </ListItem>
-          );
-        })}
-      </List>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 2 }}>
+        <List sx={{ px: 2 }}>
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+            return (
+              <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+                <ListItemButton
+                  selected={isActive}
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    borderRadius: '12px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)',
+                    ...(isActive ? {
+                      background: 'rgba(0, 245, 147, 0.15)',
+                      border: '1px solid rgba(0, 245, 147, 0.3)',
+                      boxShadow: '0 4px 15px rgba(0, 245, 147, 0.2)',
+                    } : {
+                      background: 'transparent',
+                      border: '1px solid transparent',
+                      '&:hover': {
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                      }
+                    })
+                  }}
+                >
+                  <ListItemIcon sx={{ 
+                    color: isActive ? '#00f593' : 'text.secondary', 
+                    minWidth: 40,
+                    transition: 'color 0.3s ease'
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.text} 
+                    primaryTypographyProps={{ 
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? 'text.primary' : 'text.secondary',
+                      sx: { transition: 'color 0.3s ease' }
+                    }} 
+                  />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
+        </List>
+      </Box>
     </Box>
   );
 
@@ -205,12 +238,23 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 2, sm: 4 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: 8,
+          mt: { xs: 8, sm: 8 },
+          minHeight: '100vh',
+          position: 'relative',
+          zIndex: 1,
+          overflow: 'hidden'
         }}
       >
-        {children}
+        {/* Background Orbs for Premium Look */}
+        <div className="bg-orb bg-orb-purple" />
+        <div className="bg-orb bg-orb-pink" />
+        <div className="bg-orb bg-orb-cyan" />
+
+        <div className="fade-in-up">
+          {children}
+        </div>
       </Box>
     </Box>
   );
