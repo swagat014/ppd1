@@ -138,21 +138,21 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
                     transition: 'all 0.3s ease',
                     backdropFilter: 'blur(10px)',
                     ...(isActive ? {
-                      background: 'rgba(0, 212, 255, 0.15)',
-                      border: '1px solid rgba(0, 212, 255, 0.3)',
-                      boxShadow: '0 4px 15px rgba(0, 212, 255, 0.2)',
+                      background: 'rgba(139, 92, 246, 0.12)',
+                      border: '1px solid rgba(139, 92, 246, 0.25)',
+                      boxShadow: '0 4px 15px rgba(139, 92, 246, 0.1)',
                     } : {
                       background: 'transparent',
                       border: '1px solid transparent',
                       '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
                       }
                     })
                   }}
                 >
                   <ListItemIcon sx={{ 
-                    color: isActive ? '#00d4ff' : 'text.secondary', 
+                    color: isActive ? '#8b5cf6' : '#94a3b8', 
                     minWidth: 40,
                     transition: 'color 0.3s ease'
                   }}>
@@ -162,7 +162,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
                     primary={item.text} 
                     primaryTypographyProps={{ 
                       fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'text.primary' : 'text.secondary',
+                      color: isActive ? '#f8fafc' : '#94a3b8',
                       sx: { transition: 'color 0.3s ease' }
                     }} 
                   />

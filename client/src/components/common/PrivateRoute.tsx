@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface PrivateRouteProps {
   children: React.ReactElement;
@@ -9,9 +10,14 @@ interface PrivateRouteProps {
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, loading } = useAuth();
+  const { settings, loading: settingsLoading } = useSettings();
 
-  if (loading) {
+  if (loading || settingsLoading) {
     return <div>Loading...</div>;
+  }
+
+  if (settings?.maintenanceMode && user?.role !== 'admin') {
+    return <Navigate to="/maintenance" replace />;
   }
 
   if (!isAuthenticated) {

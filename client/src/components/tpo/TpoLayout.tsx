@@ -32,6 +32,9 @@ import {
   Person,
   Notifications,
   Business,
+  Quiz,
+  LibraryBooks,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 280;
@@ -45,6 +48,8 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/tpo' },
   { text: 'Student Management', icon: <People />, path: '/tpo/students' },
+  { text: 'DSA Problems', icon: <CodeIcon />, path: '/tpo/dsa' },
+  { text: 'Aptitude Tests', icon: <Quiz />, path: '/tpo/aptitude' },
   { text: 'Placement Analytics', icon: <BarChart />, path: '/tpo/analytics' },
   { text: 'Company Insights', icon: <Work />, path: '/tpo/companies' },
   { text: 'Performance Tracking', icon: <Assessment />, path: '/tpo/performance' },
@@ -96,14 +101,14 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
         background: 'rgba(255, 255, 255, 0.02)'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5 }}>
-          <Business sx={{ fontSize: 28, color: '#00f593' }} />
+          <Business sx={{ fontSize: 28, color: '#10b981' }} />
           <Typography variant="h6" noWrap component="div" fontWeight="800" sx={{
-            background: 'linear-gradient(135deg, #f0f4ff 0%, #00f593 100%)',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #10b981 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             letterSpacing: '1px'
           }}>
-            TPO PORTAL
+            TPO FORGE
           </Typography>
         </Box>
       </Toolbar>
@@ -121,21 +126,21 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
                     transition: 'all 0.3s ease',
                     backdropFilter: 'blur(10px)',
                     ...(isActive ? {
-                      background: 'rgba(0, 245, 147, 0.15)',
-                      border: '1px solid rgba(0, 245, 147, 0.3)',
-                      boxShadow: '0 4px 15px rgba(0, 245, 147, 0.2)',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.1)',
                     } : {
                       background: 'transparent',
                       border: '1px solid transparent',
                       '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
                       }
                     })
                   }}
                 >
                   <ListItemIcon sx={{ 
-                    color: isActive ? '#00f593' : 'text.secondary', 
+                    color: isActive ? '#10b981' : '#94a3b8', 
                     minWidth: 40,
                     transition: 'color 0.3s ease'
                   }}>
@@ -145,7 +150,7 @@ const TpoLayout: React.FC<TpoLayoutProps> = ({ children }) => {
                     primary={item.text} 
                     primaryTypographyProps={{ 
                       fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'text.primary' : 'text.secondary',
+                      color: isActive ? '#f8fafc' : '#94a3b8',
                       sx: { transition: 'color 0.3s ease' }
                     }} 
                   />

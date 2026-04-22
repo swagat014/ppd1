@@ -94,6 +94,13 @@ const Login: React.FC = () => {
     }
   }, [isAuthenticated, user, navigate]);
 
+  useEffect(() => {
+    if (settings?.maintenanceMode) {
+      setTabValue(2); // Set to admin index tab automatically
+      setRole('admin');
+    }
+  }, [settings?.maintenanceMode]);
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
     const roles: ('student' | 'tpo' | 'admin' | 'teacher')[] = ['student', 'tpo', 'admin', 'teacher'];
@@ -285,12 +292,17 @@ const Login: React.FC = () => {
                 },
               }}
             >
-              <Tab icon={<Person />} iconPosition="start" label="Student" />
-              <Tab icon={<BusinessCenter />} iconPosition="start" label="TPO" />
+              <Tab icon={<Person />} iconPosition="start" label="Student" disabled={settings?.maintenanceMode} />
+              <Tab icon={<BusinessCenter />} iconPosition="start" label="TPO" disabled={settings?.maintenanceMode} />
               <Tab icon={<AdminPanelSettings />} iconPosition="start" label="Admin" />
-              <Tab icon={<School />} iconPosition="start" label="Teacher" />
+              <Tab icon={<School />} iconPosition="start" label="Teacher" disabled={settings?.maintenanceMode} />
             </Tabs>
           </Box>
+          {settings?.maintenanceMode && (
+            <Alert severity="warning" sx={{ m: 2, bgcolor: 'rgba(255, 152, 0, 0.1)', color: '#ff9800' }}>
+              System is currently under maintenance. Only Admin logins are permitted.
+            </Alert>
+          )}
 
           <TabPanel value={tabValue} index={tabValue}>
             <form onSubmit={handleSubmit}>

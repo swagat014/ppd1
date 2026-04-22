@@ -115,9 +115,21 @@ export const getStudents = async (req: AuthRequest, res: Response): Promise<void
     .populate('userId', 'profile.firstName profile.lastName email profile.department profile.rollNumber')
     .sort({ 'readiness.overallScore': -1 });
 
+    const Profile = require('../models/Profile.model').default;
+    const profiles = await Profile.find({ userId: { $in: studentUserIdsInDept } });
+
+    const studentsWithAcademics = students.map(student => {
+      const studentObj = student.toObject() as any;
+      const profile = profiles.find((p: any) => p.userId.toString() === student.userId._id.toString());
+      if (profile && profile.studentInfo && profile.studentInfo.academicInfo) {
+        studentObj.academicInfo = profile.studentInfo.academicInfo;
+      }
+      return studentObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: students
+      data: studentsWithAcademics
     });
   } catch (error: any) {
     res.status(500).json({

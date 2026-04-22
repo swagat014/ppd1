@@ -380,24 +380,47 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
                           <TextField
                             fullWidth
                             label="Father's Name"
-                            value={profile.studentInfo.fathers_name || ''}
-                            disabled
+                            value={editing ? tempProfile?.studentInfo?.fathers_name || '' : profile.studentInfo.fathers_name || ''}
+                            disabled={!editing}
+                            onChange={(e) => setTempProfile({
+                              ...tempProfile,
+                              studentInfo: {
+                                ...tempProfile?.studentInfo,
+                                fathers_name: e.target.value
+                              }
+                            })}
                           />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                           <TextField
                             fullWidth
                             label="Date of Birth"
-                            value={profile.studentInfo.date_of_birth || ''}
-                            disabled
+                            type="date"
+                            value={editing ? tempProfile?.studentInfo?.date_of_birth || '' : profile.studentInfo.date_of_birth || ''}
+                            disabled={!editing}
+                            onChange={(e) => setTempProfile({
+                              ...tempProfile,
+                              studentInfo: {
+                                ...tempProfile?.studentInfo,
+                                date_of_birth: e.target.value
+                              }
+                            })}
+                            InputLabelProps={{ shrink: true }}
                           />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                           <TextField
                             fullWidth
                             label="Phone"
-                            value={profile.studentInfo.phone || ''}
-                            disabled
+                            value={editing ? tempProfile?.studentInfo?.phone || '' : profile.studentInfo.phone || ''}
+                            disabled={!editing}
+                            onChange={(e) => setTempProfile({
+                              ...tempProfile,
+                              studentInfo: {
+                                ...tempProfile?.studentInfo,
+                                phone: e.target.value
+                              }
+                            })}
                           />
                         </Grid>
                       </>
@@ -442,9 +465,46 @@ const Profile: React.FC<ProfileProps> = ({ open, onClose }) => {
                       return (
                         <Grid item xs={6} sm={3} key={semester}>
                           <Typography variant="body2" color="textSecondary">Semester {semester}</Typography>
-                          <Typography variant="h6" color={record?.sgpa ? "primary" : "textSecondary"}>
-                            {record?.sgpa ? record.sgpa.toFixed(2) : 'N/A'}
-                          </Typography>
+                          {editing ? (
+                            <TextField
+                              size="small"
+                              type="number"
+                              inputProps={{ min: 0, max: 10, step: 0.1 }}
+                              value={
+                                tempProfile?.studentInfo?.academicInfo?.semesterRecords?.find((r: any) => r.semester === semester)?.sgpa ?? ''
+                              }
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                let academicInfo = tempProfile?.studentInfo?.academicInfo || { semesterRecords: [] };
+                                let records = [...(academicInfo.semesterRecords || [])];
+                                const existingIndex = records.findIndex((r: any) => r.semester === semester);
+                                if (existingIndex >= 0) {
+                                  if (val === undefined) {
+                                    records.splice(existingIndex, 1);
+                                  } else {
+                                    records[existingIndex] = { ...records[existingIndex], sgpa: val };
+                                  }
+                                } else if (val !== undefined) {
+                                  records.push({ semester, sgpa: val });
+                                }
+                                setTempProfile({
+                                  ...tempProfile,
+                                  studentInfo: {
+                                    ...tempProfile?.studentInfo,
+                                    academicInfo: {
+                                      ...academicInfo,
+                                      semesterRecords: records
+                                    }
+                                  }
+                                });
+                              }}
+                              placeholder="SGPA"
+                            />
+                          ) : (
+                            <Typography variant="h6" color={record?.sgpa ? "primary" : "textSecondary"}>
+                              {record?.sgpa ? record.sgpa.toFixed(2) : 'N/A'}
+                            </Typography>
+                          )}
                         </Grid>
                       );
                     })}

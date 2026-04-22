@@ -243,6 +243,19 @@ export const createOrUpdateProfile = async (req: AuthRequest, res: Response): Pr
           // Preserve department from user profile
           profile.studentInfo.department = originalDepartment;
         }
+
+        // Always recalculate CGPA
+        if (profile.studentInfo && profile.studentInfo.academicInfo && profile.studentInfo.academicInfo.semesterRecords) {
+          let totalPoints = 0;
+          let totalSemesters = 0;
+          profile.studentInfo.academicInfo.semesterRecords.forEach((record: any) => {
+            if (record.sgpa !== undefined && record.sgpa !== null) {
+              totalPoints += record.sgpa;
+              totalSemesters++;
+            }
+          });
+          profile.studentInfo.academicInfo.cgpa = totalSemesters > 0 ? parseFloat((totalPoints / totalSemesters).toFixed(2)) : 0;
+        }
       }
       
       // Save the profile to persist department changes

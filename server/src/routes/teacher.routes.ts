@@ -19,6 +19,7 @@ import {
   deleteResource,
   getAnalytics,
 } from '../controllers/teacher.controller';
+import { getLeaderboard } from '../controllers/student.controller';
 
 const router = express.Router();
 
@@ -27,6 +28,9 @@ router.use(authorize('teacher'));
 
 // Dashboard
 router.get('/dashboard', getDashboard);
+
+// Leaderboard
+router.get('/leaderboard', getLeaderboard);
 
 // Students
 router.get('/students', getStudents);

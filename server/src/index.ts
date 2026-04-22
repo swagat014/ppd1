@@ -56,6 +56,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/core-subjects', coreSubjectRoutes);
+import { getSystemSettings } from './controllers/admin.controller';
+app.get('/api/public/settings', getSystemSettings);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -80,8 +82,11 @@ io.on('connection', (socket) => {
   });
 });
 
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Create uploads directories if they don't exist
-const uploadDirs = ['uploads/csv', 'uploads/core-subjects'];
+const uploadDirs = ['uploads/csv', 'uploads/core-subjects', 'uploads/profile-pics'];
 uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

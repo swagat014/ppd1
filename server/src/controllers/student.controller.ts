@@ -12,7 +12,91 @@ const mammoth = require('mammoth');
 import ResumeAnalysis from '../models/ResumeAnalysis.model';
 import { analyzeResumeText } from '../utils/resumeAnalysis.util';
 
-const openai: null = null;
+// @desc    Get leaderboard rankings
+// @route   GET /api/student/leaderboard
+// @access  Private
+export const getLeaderboard = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { department, page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const pipeline: any[] = [
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userDetails'
+        }
+      },
+      { $unwind: '$userDetails' }
+    ];
+
+    if (department) {
+      pipeline.push({
+        $match: { 'userDetails.profile.department': department }
+      });
+    }
+
+    pipeline.push(
+      {
+        $sort: { 
+          'readiness.overallScore': -1, 
+          'practice.dsa.solvedProblems': -1 
+        }
+      },
+      { $skip: skip },
+      { $limit: Number(limit) },
+      {
+        $project: {
+          id: '$_id',
+          name: { $concat: ['$userDetails.profile.firstName', ' ', '$userDetails.profile.lastName'] },
+          department: '$userDetails.profile.department',
+          overallScore: '$readiness.overallScore',
+          dsaSolved: '$practice.dsa.solvedProblems',
+          aptitudeScore: '$practice.aptitude.averageScore',
+          streak: { $ifNull: ['$analytics.streak', 0] }
+        }
+      }
+    );
+
+    const rankings = await Student.aggregate(pipeline);
+    
+    // Efficient count for total
+    const totalPipeline: any[] = [
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: 'id',
+          as: 'userDetails'
+        }
+      }
+    ];
+
+    const total = await Student.countDocuments(department ? { 'profile.department': department } : {});
+
+    const students = rankings.map((s, index) => ({
+      rank: skip + index + 1,
+      ...s
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        rankings: students,
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get rankings',
+    });
+  }
+};
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

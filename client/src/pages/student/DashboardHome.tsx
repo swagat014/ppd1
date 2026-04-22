@@ -58,6 +58,16 @@ import {
   Line,
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
+import Leaderboard from '../../components/common/Leaderboard';
+
+interface Opportunity {
+  _id: string;
+  name: string;
+  role: string;
+  eventType: string;
+  deadline: string;
+  location: string;
+}
 
 interface DashboardStats {
   readiness: {
@@ -105,6 +115,7 @@ interface DashboardStats {
     pronunciation: number;
     writing: number;
   };
+  opportunities?: Opportunity[];
 }
 
 const DashboardHome: React.FC = () => {
@@ -147,9 +158,9 @@ const DashboardHome: React.FC = () => {
   }
 
   const readinessScore = stats?.readiness.overallScore || 0;
-  const streakDays = stats?.analytics?.streak || 7;
-  const globalRank = stats?.analytics?.rank || 12;
-  const totalStudents = stats?.analytics?.totalStudents || 1000;
+  const streakDays = stats?.analytics?.streak || 0;
+  const globalRank = stats?.analytics?.rank || 0;
+  const totalStudents = stats?.analytics?.totalStudents || 0;
 
   const skillData = [
     { subject: 'DSA', A: stats?.readiness.technicalScore || 0, fullMark: 100 },
@@ -168,273 +179,288 @@ const DashboardHome: React.FC = () => {
     { stage: 'Job Ready', score: readinessScore, status: readinessScore > 80 ? 'Victory' : 'Goal' },
   ];
 
+  const opportunities = stats?.opportunities || [];
+
   const coreCards = [
-    { title: 'Readiness Index', value: `${readinessScore}%`, icon: <AutoGraph />, color: '#00d4ff', path: '/student/readiness' },
-    { title: 'DSA Progress', value: `${stats?.practice.dsa.solved || 0}/${stats?.practice.dsa.total || 0}`, icon: <Code />, color: '#00f593', path: '/student/dsa' },
-    { title: 'Test Accuracy', value: `${(stats?.practice.dsa.accuracy || 0).toFixed(1)}%`, icon: <TrendingUp />, color: '#ffd60a', path: '/student/analytics' },
-    { title: 'Aptitude Score', value: `${(stats?.practice.aptitude.averageScore || 0).toFixed(1)}%`, icon: <Quiz />, color: '#f72585', path: '/student/aptitude' },
+    { title: 'Readiness Index', value: `${readinessScore}%`, icon: <AutoGraph />, color: '#8b5cf6', path: '/student/readiness' },
+    { title: 'DSA Progress', value: `${stats?.practice.dsa.solved || 0}/${stats?.practice.dsa.total || 0}`, icon: <Code />, color: '#10b981', path: '/student/dsa' },
+    { title: 'Test Accuracy', value: `${(stats?.practice.dsa.accuracy || 0).toFixed(1)}%`, icon: <TrendingUp />, color: '#f59e0b', path: '/student/analytics' },
+    { title: 'Aptitude Score', value: `${(stats?.practice.aptitude.averageScore || 0).toFixed(1)}%`, icon: <Quiz />, color: '#ec4899', path: '/student/aptitude' },
   ];
 
   return (
-    <Box className="dashboard-entry-1">
-        {/* Sync Status and Last Updated */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Box display="flex" alignItems="center" gap={1}>
-            <Typography variant="caption" color="text.secondary">
-              Last synced: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Never'}
-            </Typography>
-            {error && (
-              <Chip 
-                label="Sync Error" 
-                size="small" 
-                color="error" 
-                onClick={fetchDashboardData}
-                sx={{ cursor: 'pointer' }}
-              />
-            )}
-          </Box>
-          <Button 
-            size="small" 
-            onClick={fetchDashboardData}
-            startIcon={<TrendingUp />}
-            sx={{ color: '#00d4ff' }}
-          >
-            Refresh
-          </Button>
+    <Box className="dashboard-entry-1" sx={{ p: { xs: 1, md: 3 } }}>
+        {/* Cinematic Header Section */}
+        <Box 
+          sx={{ 
+            p: 4, 
+            mb: 4, 
+            borderRadius: 6, 
+            background: 'linear-gradient(225deg, rgba(124, 58, 237, 0.1) 0%, rgba(3, 7, 18, 0) 50%, rgba(219, 39, 119, 0.05) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.03)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Animated Background Orbs */}
+          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, bgcolor: 'var(--primary)', opacity: 0.05, filter: 'blur(80px)', borderRadius: '50%' }} />
+          <Box sx={{ position: 'absolute', bottom: -50, left: -50, width: 150, height: 150, bgcolor: 'var(--secondary)', opacity: 0.05, filter: 'blur(60px)', borderRadius: '50%' }} />
+
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} md={7}>
+              <Box display="flex" alignItems="center" gap={3}>
+                <Avatar 
+                  sx={{ 
+                    width: 100, height: 100, 
+                    border: '4px solid rgba(124, 58, 237, 0.3)',
+                    boxShadow: '0 0 30px rgba(124, 58, 237, 0.2)',
+                    fontSize: '2.5rem',
+                    bgcolor: 'var(--bg-slate)',
+                    fontWeight: 900
+                  }}
+                >
+                  {user?.profile.firstName.charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography variant="h3" fontWeight="900" sx={{
+                    background: 'linear-gradient(135deg, #fff 0%, #94a3b8 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    mb: 0.5
+                  }}>
+                    Welcome back, {user?.profile.firstName}
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip 
+                      label={`GLOBAL RANK #${globalRank}`} 
+                      size="small" 
+                      sx={{ bgcolor: 'rgba(124, 58, 237, 0.15)', color: '#a78bfa', fontWeight: 'bold', border: '1px solid rgba(124, 58, 237, 0.3)' }} 
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      out of {totalStudents} specialized candidates
+                    </Typography>
+                  </Stack>
+                </Box>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={5}>
+              <Stack direction="row" spacing={2} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+                <Paper className="glass-card holographic-glow" sx={{ py: 2, px: 4, textAlign: 'center', minWidth: 140 }}>
+                  <Typography variant="h4" fontWeight="900" sx={{ color: 'var(--secondary)', mb: 0.5 }}>{streakDays}</Typography>
+                  <Typography variant="caption" fontWeight="bold" sx={{ letterSpacing: 2, opacity: 0.6 }}>STREAK</Typography>
+                </Paper>
+                <Paper className="glass-card holographic-glow" sx={{ py: 2, px: 4, textAlign: 'center', minWidth: 140 }}>
+                  <Typography variant="h4" fontWeight="900" sx={{ color: 'var(--accent-cyan)', mb: 0.5 }}>{readinessScore}%</Typography>
+                  <Typography variant="caption" fontWeight="bold" sx={{ letterSpacing: 2, opacity: 0.6 }}>READINESS</Typography>
+                </Paper>
+              </Stack>
+            </Grid>
+          </Grid>
         </Box>
 
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-          <Box>
-            <Typography variant="h3" fontWeight="900" sx={{
-              background: 'linear-gradient(135deg, #f0f4ff 0%, #00d4ff 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              letterSpacing: '-1px'
-            }}>
-              Master {user?.profile.firstName}
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
-              Leveling up your professional trajectory • Rank #{globalRank} of {totalStudents}
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <Paper className="glass-card" sx={{ p: 1.5, px: 3, display: 'flex', alignItems: 'center', gap: 2, borderRadius: 4, border: '1px solid rgba(247, 37, 133, 0.2)' }}>
-              <LocalFireDepartment className="led-pulse" sx={{ color: '#f72585', fontSize: 32 }} />
-              <Box>
-                <Typography variant="h5" fontWeight="900">{streakDays} Days</Typography>
-                <Typography variant="caption" color="text.secondary" fontWeight="bold">STREAK</Typography>
-              </Box>
-            </Paper>
-            <Paper className="glass-card" sx={{ p: 1.5, px: 3, display: 'flex', alignItems: 'center', gap: 2, borderRadius: 4, border: '1px solid rgba(0, 212, 255, 0.2)' }}>
-              <TrophyIcon sx={{ color: '#00d4ff', fontSize: 32 }} />
-              <Box>
-                <Typography variant="h5" fontWeight="900">#{globalRank}</Typography>
-                <Typography variant="caption" color="text.secondary" fontWeight="bold">GLOBAL RANK</Typography>
-              </Box>
-            </Paper>
-          </Stack>
-        </Box>
-
-        {/* Milestone Bar */}
-        <Card className="glass-card" sx={{ mb: 4, background: 'rgba(255,255,255,0.02)' }}>
-          <CardContent sx={{ py: 2 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <EmojiEvents sx={{ color: '#ffd60a' }} />
-                <Typography variant="body2" fontWeight="bold">Next Achievement: Career Launchpad Ready</Typography>
-              </Box>
-              <Typography variant="caption" fontWeight="bold">{readinessScore}/80% Required</Typography>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={Math.min(100, (readinessScore / 80) * 100)} 
-              sx={{ 
-                height: 10, borderRadius: 5,
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #ffd60a 0%, #00d4ff 100%)' }
-              }} 
-            />
-          </CardContent>
-        </Card>
-
-        <Grid container spacing={4}>
-          {/* Core Stats Cards */}
+        <Grid container spacing={3}>
+          {/* Quick Stats Grid */}
           {coreCards.map((card, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index} className={`dashboard-entry-${(index % 3) + 1}`}>
-              <Card className="glass-card" sx={{ borderLeft: `4px solid ${card.color}`, cursor: 'pointer', '&:hover': { transform: 'translateY(-5px)' }, transition: '0.3s' }} onClick={() => navigate(card.path)}>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" fontWeight="bold">{card.title}</Typography>
-                      <Typography variant="h4" fontWeight="900" mt={0.5} sx={{ color: '#fff' }}>{card.value}</Typography>
-                    </Box>
-                    <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: card.color }}>{card.icon}</Avatar>
+            <Grid item xs={12} sm={6} md={3} key={index} className={`dashboard-entry-${index + 1}`}>
+              <Card 
+                className="glass-card" 
+                sx={{ 
+                  position: 'relative', 
+                  overflow: 'hidden', 
+                  '&:hover': { '& .stat-icon': { transform: 'scale(1.2) rotate(10deg)', opacity: 0.2 } } 
+                }}
+              >
+                <Box sx={{ position: 'absolute', top: -20, right: -20, opacity: 0.05, transition: '0.4s' }} className="stat-icon">
+                  {React.cloneElement(card.icon as React.ReactElement, { sx: { fontSize: 100, color: card.color } })}
+                </Box>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="caption" fontWeight="900" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1.5 }}>
+                    {card.title}
+                  </Typography>
+                  <Typography variant="h4" fontWeight="999" sx={{ mt: 1, mb: 2 }}>
+                    {card.value}
+                  </Typography>
+                  <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
+                    <Box sx={{ width: '70%', height: '100%', bgcolor: card.color, borderRadius: 2, boxShadow: `0 0 10px ${card.color}` }} />
                   </Box>
                 </CardContent>
               </Card>
             </Grid>
           ))}
 
-          {/* Career Path Trajectory */}
+          {/* Performance Ecosystem */}
           <Grid item xs={12} md={8} className="dashboard-entry-2">
-            <Card className="glass-card" sx={{ height: 450 }}>
-              <CardContent sx={{ height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
-                  <TrendingUp color="primary" /> Professional Evolution Trajectory
-                </Typography>
-                <ResponsiveContainer width="100%" height="75%">
-                  <LineChart data={roadmapData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="stage" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <YAxis hide domain={[0, 100]} />
-                    <ReTooltip contentStyle={{ backgroundColor: '#0d1228', border: '1px solid rgba(0, 212, 255, 0.3)', borderRadius: 12 }} />
-                    <Line type="stepAfter" dataKey="score" stroke="#00d4ff" strokeWidth={4} dot={{ r: 8, fill: '#00d4ff', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 10, fill: '#fff' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-                <Box display="flex" justifyContent="space-around" mt={2}>
+            <Card className="glass-card" sx={{ height: 500, p: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}>
+                    <TrendingUp sx={{ color: 'var(--primary)' }} /> EVOLUTION TRAJECTORY
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Mapping your professional transcendence</Typography>
+                </Box>
+                <Button size="small" sx={{ color: 'var(--primary)', fontWeight: 'bold' }}>FULL ANALYSIS</Button>
+              </Box>
+              <ResponsiveContainer width="100%" height="75%">
+                <AreaChart data={roadmapData}>
+                  <defs>
+                    <linearGradient id="colorScoreV2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <XAxis dataKey="stage" stroke="#475569" fontSize={11} axisLine={false} tickLine={false} dy={10} />
+                  <YAxis hide domain={[0, 100]} />
+                  <ReTooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-obsidian)', border: '1px solid var(--glass-border)', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+                    itemStyle={{ fontWeight: 'bold', color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={4} fillOpacity={1} fill="url(#colorScoreV2)" />
+                </AreaChart>
+              </ResponsiveContainer>
+              <Box display="flex" justifyContent="space-around" mt={2}>
                   {roadmapData.map((d, i) => (
                     <Box key={i} textAlign="center">
-                      <Typography variant="caption" sx={{ color: d.status === 'Completed' ? '#00f593' : d.status === 'Active' ? '#00d4ff' : 'text.secondary', fontWeight: 'bold' }}>
-                        {d.status}
+                      <Typography variant="caption" sx={{ color: d.status === 'Completed' || d.status === 'Victory' ? 'var(--accent-emerald)' : d.status === 'Active' ? 'var(--primary)' : 'text.muted', fontWeight: 'bold' }}>
+                        {d.stage.split(' ')[0]}
                       </Typography>
                     </Box>
                   ))}
                 </Box>
-              </CardContent>
             </Card>
           </Grid>
 
-          {/* Ability Matrix Radar */}
+          {/* Ability Matrix */}
           <Grid item xs={12} md={4} className="dashboard-entry-2">
-            <Card className="glass-card" sx={{ height: 450 }}>
-              <CardContent sx={{ height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={1}>
-                  <Psychology sx={{ color: '#00f593' }} /> Cognitive Matrix
-                </Typography>
-                <Typography variant="caption" color="text.secondary" mb={4} display="block">Synthesized ability distribution</Typography>
-                <ResponsiveContainer width="100%" height="75%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillData}>
-                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
-                    <Radar name="Skills" dataKey="A" stroke="#00f593" fill="#00f593" fillOpacity={0.6} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </CardContent>
+            <Card className="glass-card" sx={{ height: 500, p: 2 }}>
+              <Typography variant="h6" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={1}>
+                <Psychology sx={{ color: 'var(--accent-emerald)' }} /> ABILITY MATRIX
+              </Typography>
+              <Typography variant="caption" color="text.secondary" mb={4} display="block">Synthesized cognitive competence mapping</Typography>
+              <ResponsiveContainer width="100%" height="75%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillData}>
+                  <PolarGrid stroke="rgba(255,255,255,0.05)" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <Radar name="Skills" dataKey="A" stroke="var(--accent-emerald)" fill="var(--accent-emerald)" fillOpacity={0.3} />
+                </RadarChart>
+              </ResponsiveContainer>
             </Card>
           </Grid>
 
-          {/* Recent Activity */}
-          <Grid item xs={12} md={5} className="dashboard-entry-3">
-            <Card className="glass-card" sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
-                  <Timer sx={{ color: '#ffd60a' }} /> Recent Activity
-                </Typography>
-                <Stack spacing={2.5}>
-                  {stats?.recentActivity?.dsa?.slice(0, 3).map((activity, i) => (
-                    <Box key={`dsa-${i}`} sx={{ p: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                        <Box display="flex" alignItems="center" gap={1.5}>
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: activity.status === 'solved' ? 'rgba(0, 245, 147, 0.1)' : 'rgba(0, 212, 255, 0.1)', color: activity.status === 'solved' ? '#00f593' : '#00d4ff' }}>
-                            {activity.status === 'solved' ? <CheckCircle sx={{ fontSize: 18 }} /> : <Code sx={{ fontSize: 18 }} />}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">DSA Problem Solved</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {new Date(activity.date).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Chip 
-                          label={activity.status} 
-                          size="small" 
-                          sx={{ 
-                            bgcolor: activity.status === 'solved' ? 'rgba(0, 245, 147, 0.1)' : 'rgba(0, 212, 255, 0.1)',
-                            color: activity.status === 'solved' ? '#00f593' : '#00d4ff',
-                            fontWeight: 'bold'
-                          }} 
-                        />
-                      </Box>
-                    </Box>
-                  ))}
-                  {stats?.recentActivity?.aptitude?.slice(0, 2).map((activity, i) => (
-                    <Box key={`apt-${i}`} sx={{ p: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                        <Box display="flex" alignItems="center" gap={1.5}>
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(247, 37, 133, 0.1)', color: '#f72585' }}>
-                            <Quiz sx={{ fontSize: 18 }} />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">Aptitude Test</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {new Date(activity.date).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Typography variant="caption" fontWeight="900" color="#f72585">
-                          {activity.score}%
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ))}
-                  {(!stats?.recentActivity?.dsa?.length && !stats?.recentActivity?.aptitude?.length) && (
-                    <Box sx={{ p: 3, textAlign: 'center', borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        No recent activity. Start practicing to see your progress here!
-                      </Typography>
-                    </Box>
-                  )}
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Critical Timeline */}
+          {/* Opportunity Window (Real Data) */}
           <Grid item xs={12} md={7} className="dashboard-entry-3">
             <Card className="glass-card" sx={{ height: '100%' }}>
+              <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}>
+                    <Event sx={{ color: 'var(--secondary)' }} /> OPPORTUNITY WINDOW
+                  </Typography>
+                  <Box sx={{ px: 2, py: 0.5, borderRadius: 1.5, bgcolor: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
+                    <Typography variant="caption" color="var(--accent-emerald)" fontWeight="999">LIVE SIGNALS</Typography>
+                  </Box>
+              </Box>
               <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
-                  <Event sx={{ color: '#ffd60a' }} /> Opportunity Window
-                </Typography>
                 <Grid container spacing={2}>
-                  {[
-                    { company: 'Google', role: 'SDE Intern', date: 'Oct 15', type: 'Application Deadline', color: '#f72585' },
-                    { company: 'Microsoft', role: 'Student Ambassador', date: 'Oct 12', type: 'Selection Round', color: '#00d4ff' },
-                    { company: 'Placement Hub', role: 'Readiness Test', date: 'Oct 20', type: 'Simulation', color: '#00f593' },
-                    { company: 'Amazon', role: 'Project ML', date: 'Oct 25', type: 'Workshop', color: '#ffd60a' },
-                  ].map((evt, i) => (
-                    <Grid item xs={12} sm={6} key={i}>
-                      <Box sx={{ p: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderLeft: `3px solid ${evt.color}`, transition: '0.3s', '&:hover': { transform: 'translateX(5px)', bgcolor: 'rgba(255,255,255,0.04)' } }}>
-                        <Box display="flex" justifyContent="space-between">
-                          <Typography variant="body2" fontWeight="900">{evt.company}</Typography>
-                          <Typography variant="caption" sx={{ color: evt.color, fontWeight: 'bold' }}>{evt.date}</Typography>
+                  {opportunities.length > 0 ? (
+                    opportunities.map((evt: Opportunity, i: number) => (
+                      <Grid item xs={12} key={i}>
+                        <Box sx={{ 
+                          p: 2.5, 
+                          borderRadius: 4, 
+                          bgcolor: 'rgba(255,255,255,0.01)', 
+                          border: '1px solid rgba(255,255,255,0.03)', 
+                          borderLeft: `4px solid ${i % 2 === 0 ? 'var(--primary)' : 'var(--secondary)'}`, 
+                          transition: 'var(--transition-smooth)', 
+                          '&:hover': { transform: 'scale(1.01)', bgcolor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' } 
+                        }}>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight="900" color="#fff">{evt.name}</Typography>
+                              <Typography variant="body2" color="text.secondary">{evt.role}</Typography>
+                            </Box>
+                            <Box textAlign="right">
+                              <Typography variant="caption" sx={{ color: 'var(--secondary)', fontWeight: '900', display: 'block' }}>
+                                EXPIRES: {new Date(evt.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              </Typography>
+                              <Chip label={evt.eventType} size="small" sx={{ height: 18, fontSize: '0.6rem', mt: 0.5, bgcolor: 'rgba(255,255,255,0.05)' }} />
+                            </Box>
+                          </Box>
                         </Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>{evt.role}</Typography>
-                        <Chip label={evt.type} size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.05)', color: 'text.secondary' }} />
+                      </Grid>
+                    ))
+                  ) : (
+                    <Grid item xs={12}>
+                      <Box sx={{ py: 8, textAlign: 'center' }}>
+                        <Typography color="text.muted">Awaiting corporate signal transmission...</Typography>
                       </Box>
                     </Grid>
-                  ))}
+                  )}
                 </Grid>
-                <Box mt={3} p={2} sx={{ borderRadius: 3, bgcolor: 'rgba(0, 212, 255, 0.05)', border: '1px dashed rgba(0, 212, 255, 0.3)' }}>
-                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Timer sx={{ color: '#00d4ff' }} /> Final semester eligibility sync starts in 48 hours.
-                  </Typography>
-                </Box>
               </CardContent>
             </Card>
+          </Grid>
+
+          {/* Global Elite Rankings (Leaderboard) */}
+          <Grid item xs={12} md={5} className="dashboard-entry-3">
+             <Box mb={4}>
+               <Box mb={3} display="flex" justifyContent="space-between" alignItems="center">
+                 <Box>
+                   <Typography variant="h6" fontWeight="999" sx={{ letterSpacing: 1, color: '#fff' }}>GLOBAL STATUS</Typography>
+                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>Top 1% performative elite</Typography>
+                 </Box>
+                 <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: 'rgba(34, 211, 238, 0.05)', display: 'flex', alignItems: 'center', gap: 1.5, border: '1px solid rgba(34, 211, 238, 0.1)' }}>
+                   <Box className="led-pulse" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'var(--accent-cyan)' }} />
+                   <Typography variant="caption" fontWeight="999" sx={{ color: 'var(--accent-cyan)', letterSpacing: 1 }}>SYNC</Typography>
+                 </Box>
+               </Box>
+               
+               <Box mb={2} sx={{ p: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                 <Typography variant="subtitle2" fontWeight="999" display="flex" alignItems="center" gap={1.5}>
+                   <EmojiEvents sx={{ color: '#ffd60a', fontSize: 20 }} /> GLOBAL ELITE
+                 </Typography>
+                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>Top performers across the decentralized disciplines</Typography>
+               </Box>
+             </Box>
+
+              <Leaderboard 
+                limit={6} 
+                initialDepartment={user?.profile.department} 
+                lockDepartment={true} 
+                hideHeader={true}
+                compact={true}
+              />
           </Grid>
 
           {/* Final Gateway Card */}
           <Grid item xs={12} className="dashboard-entry-3">
-            <Card className="glass-card neon-border-cyan">
+            <Card 
+              className="glass-card holographic-glow" 
+              sx={{ 
+                p: 1, 
+                border: '1px solid rgba(34, 211, 238, 0.2)',
+                background: 'linear-gradient(90deg, rgba(34, 211, 238, 0.05) 0%, rgba(3, 7, 18, 0) 100%)'
+              }}
+            >
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <Box>
-                    <Typography variant="h5" fontWeight="900" mb={1}>Ready for the Real World?</Typography>
-                    <Typography variant="body2" color="text.secondary">Your current readiness index outperforms 70% of the cohort. Execute your final test now.</Typography>
+                    <Typography variant="h5" fontWeight="999" sx={{ color: 'var(--accent-cyan)' }}>INITIATE FINAL PROTOCOL</Typography>
+                    <Typography variant="body2" color="text.secondary">Your trajectory exceeds 94% of active candidates. Execute your career deployment test.</Typography>
                   </Box>
-                  <Button variant="contained" endIcon={<ArrowForward />} sx={{ bgcolor: '#00d4ff', color: '#000', borderRadius: 2, px: 4, py: 1.5, fontWeight: 'bold' }} onClick={() => navigate('/student/readiness/test')}>
-                    Initiate Final Protocol
+                  <Button 
+                    variant="contained" 
+                    endIcon={<ArrowForward />} 
+                    sx={{ 
+                      bgcolor: 'var(--primary)', 
+                      color: '#fff', 
+                      borderRadius: 3, 
+                      px: 5, py: 2, 
+                      fontWeight: 900,
+                      boxShadow: '0 10px 20px rgba(124, 58, 237, 0.3)',
+                      '&:hover': { bgcolor: '#6d28d9', transform: 'scale(1.05)' } 
+                    }} 
+                    onClick={() => navigate('/student/readiness/test')}
+                  >
+                    DEPLOY NOW
                   </Button>
                 </Box>
               </CardContent>

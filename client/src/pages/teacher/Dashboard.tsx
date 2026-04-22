@@ -18,6 +18,8 @@ import {
   Button,
   Stack,
   LinearProgress,
+  CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   School,
@@ -42,13 +44,14 @@ import {
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { SkeletonDashboard } from '../../components/common/SkeletonLoading';
+import Leaderboard from '../../components/common/Leaderboard';
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as ReTooltip,
   ResponsiveContainer,
   AreaChart,
   Area,
@@ -57,6 +60,7 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
+  Legend,
 } from 'recharts';
 
 interface CoreSubjectNote {
@@ -160,55 +164,46 @@ const TeacherDashboard: React.FC = () => {
 
   return (
     <TeacherLayout>
-      <Container maxWidth="xl">
-        <Grid container spacing={4}>
-          <Grid item xs={12} sx={{ mb: 2 }} className="dashboard-entry-1">
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="h3" fontWeight="900" sx={{
-                  background: 'linear-gradient(135deg, #f0f4ff 0%, #ff4da6 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  letterSpacing: '-1px'
-                }}>
-                  Academic Command
-                </Typography>
-                <Typography variant="subtitle1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
-                  Monitoring educational excellence and student trajectories
-                </Typography>
-              </Box>
-              <Chip 
-                label="ACADEMIC YEAR 2024-25" 
-                variant="outlined" 
-                sx={{ borderRadius: 2, borderColor: 'rgba(247, 37, 133, 0.3)', color: '#ff4da6', fontWeight: 'bold' }} 
-              />
-            </Box>
-          </Grid>
+      <Box sx={{ p: { xs: 2, md: 4 }, background: 'transparent' }} className="dashboard-entry-1">
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={6}>
+          <Box>
+            <Typography variant="h3" fontWeight="999" className="text-gradient" sx={{ letterSpacing: -1, mb: 1 }}>
+              ACADEMIC COMMAND
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ opacity: 0.8, fontWeight: 500 }}>
+              Monitoring architectural excellence and cognitive trajectories for the {user?.profile?.department || 'Research'} sector.
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2, borderRadius: 3, bgcolor: 'rgba(124, 58, 237, 0.05)', border: '1px solid rgba(124, 58, 237, 0.1)', textAlign: 'right' }}>
+            <Typography variant="caption" color="var(--primary)" fontWeight="999" sx={{ letterSpacing: 2, display: 'block', mb: 0.5 }}>ACTIVE CYCLE</Typography>
+            <Typography variant="subtitle2" fontWeight="bold">2024-25 GENESIS</Typography>
+          </Box>
+        </Box>
 
+        <Grid container spacing={4}>
           {/* Stats Cards */}
           {stats.map((stat, index) => (
             <Grid item xs={12} sm={6} md={3} key={index} className={`dashboard-entry-${(index % 3) + 1}`}>
-              <Card className="glass-card">
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography color="text.secondary" variant="caption" fontWeight="bold" sx={{ letterSpacing: '1px', textTransform: 'uppercase' }}>
-                        {stat.title}
-                      </Typography>
-                      <Typography variant="h4" fontWeight="900" mt={0.5} sx={{ color: '#fff' }}>
-                        {stat.value}
-                      </Typography>
-                    </Box>
-                    <Avatar
-                      sx={{
-                        background: `linear-gradient(135deg, ${stat.color === 'primary' ? '#6c63ff' : stat.color === 'success' ? '#00f593' : stat.color === 'warning' ? '#ffd60a' : '#00d4ff'} 0%, rgba(0,0,0,0.5) 100%)`,
-                        width: 50,
-                        height: 50,
-                      }}
-                    >
-                      {stat.icon}
-                    </Avatar>
+              <Card 
+                className="glass-card holographic-glow"
+                sx={{ 
+                  cursor: 'pointer', 
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'var(--transition-smooth)',
+                  '&:hover': { transform: 'translateY(-10px)', background: 'rgba(255,255,255,0.03)' }
+                }}
+              >
+                <CardContent sx={{ p: 4 }}>
+                  <Box sx={{ width: 48, height: 48, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3, color: 'var(--primary)' }}>
+                    {stat.icon}
                   </Box>
+                  <Typography color="text.secondary" variant="caption" fontWeight="999" sx={{ letterSpacing: 1.5, textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                    {stat.title}
+                  </Typography>
+                  <Typography variant="h3" fontWeight="999" sx={{ letterSpacing: -1 }}>
+                    {stat.value}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -216,68 +211,67 @@ const TeacherDashboard: React.FC = () => {
 
           {/* Subject Mastery Radar */}
           <Grid item xs={12} md={6} className="dashboard-entry-2">
-            <Card className="glass-card" sx={{ height: 450 }}>
-              <CardContent sx={{ height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={1}>
-                  <TrendingUp color="secondary" /> Subject Mastery Nexus
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-                  Aggregate competency levels across core functional domains
-                </Typography>
-                <ResponsiveContainer width="100%" height="80%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={masteryData}>
-                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} hide />
-                    <Radar
-                      name="Cohort"
-                      dataKey="A"
-                      stroke="#ff4da6"
-                      fill="#ff4da6"
-                      fillOpacity={0.6}
-                    />
-                    <Tooltip contentStyle={{ backgroundColor: '#0d1228', border: '1px solid rgba(247, 37, 133, 0.3)', borderRadius: 12 }} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </CardContent>
+            <Card className="glass-card" sx={{ height: 500, p: 2 }}>
+              <Typography variant="h6" fontWeight="999" mb={1} display="flex" alignItems="center" gap={1.5} sx={{ color: 'var(--accent-emerald)', letterSpacing: 1 }}>
+                <TrendingUp /> SUBJECT MASTERY NEXUS
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 4, display: 'block' }}>Aggregate competency levels across core functional domains</Typography>
+              <ResponsiveContainer width="100%" height="75%">
+                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={masteryData}>
+                  <PolarGrid stroke="rgba(255,255,255,0.05)" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 'bold' }} />
+                  <Radar
+                    name="Cohort"
+                    dataKey="A"
+                    stroke="var(--accent-emerald)"
+                    fill="var(--accent-emerald)"
+                    fillOpacity={0.2}
+                    strokeWidth={4}
+                  />
+                  <ReTooltip contentStyle={{ backgroundColor: 'var(--bg-obsidian)', border: '1px solid var(--glass-border)', borderRadius: 16 }} />
+                </RadarChart>
+              </ResponsiveContainer>
             </Card>
           </Grid>
 
           {/* Students Needing Support Timeline */}
           <Grid item xs={12} md={6} className="dashboard-entry-2">
-            <Card className="glass-card" sx={{ height: 450 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={3} color="#f72585" display="flex" alignItems="center" gap={1}>
-                  <FiberManualRecord className="led-pulse" sx={{ fontSize: 14 }} /> Critical Support Pulse
+            <Card className="glass-card" sx={{ height: 500 }}>
+              <CardContent sx={{ p: 4 }}>
+                <Typography variant="h6" fontWeight="999" mb={4} color="var(--secondary)" display="flex" alignItems="center" gap={2} sx={{ letterSpacing: 1 }}>
+                  <FiberManualRecord className="led-pulse" sx={{ fontSize: 16 }} /> CRITICAL SUPPORT PULSE
                 </Typography>
-                <Stack spacing={2} sx={{ maxHeight: 340, overflowY: 'auto', pr: 1 }}>
+                <Stack spacing={3} sx={{ maxHeight: 360, overflowY: 'auto', pr: 2 }}>
                   {supportList.length > 0 ? supportList.map((student) => (
                     <Box key={student._id} sx={{ 
-                      p: 2, 
-                      borderRadius: 3, 
-                      bgcolor: 'rgba(247, 37, 133, 0.05)', 
-                      border: '1px solid rgba(247, 37, 133, 0.1)',
+                      p: 3, 
+                      borderRadius: 4, 
+                      bgcolor: 'rgba(255, 255, 255, 0.02)', 
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
+                      transition: '0.3s',
+                      '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(219, 39, 119, 0.2)' }
                     }}>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Avatar sx={{ bgcolor: 'rgba(247, 37, 133, 0.2)', color: '#f72585', fontWeight: 'bold', width: 32, height: 32, fontSize: '0.8rem' }}>
+                      <Box display="flex" alignItems="center" gap={3}>
+                        <Avatar sx={{ bgcolor: 'rgba(219, 39, 119, 0.1)', color: 'var(--secondary)', fontWeight: 900, width: 44, height: 44 }}>
                           {student.name?.charAt(0)}
                         </Avatar>
                         <Box>
-                          <Typography variant="body2" fontWeight="bold">{student.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">Score: {student.score}%</Typography>
+                          <Typography variant="subtitle1" fontWeight="900" sx={{ color: '#fff' }}>{student.name}</Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>READINESS SCORE: {student.score}%</Typography>
                         </Box>
                       </Box>
-                      <Button size="small" variant="outlined" color="secondary" sx={{ borderRadius: 1.5, fontSize: '0.6rem' }}>
-                        Intervene
+                      <Button size="small" variant="contained" sx={{ borderRadius: 2, bgcolor: 'var(--secondary)', color: '#fff', fontWeight: 999, px: 3 }}>
+                        DEPLOY SUPPORT
                       </Button>
                     </Box>
                   )) : (
-                    <Box textAlign="center" py={5}>
-                      <CheckCircle sx={{ fontSize: 48, color: '#00f593', mb: 2, opacity: 0.5 }} />
-                      <Typography color="text.secondary">All students meet proficiency standards.</Typography>
+                    <Box textAlign="center" py={12}>
+                      <CheckCircle sx={{ fontSize: 60, color: 'var(--accent-emerald)', mb: 3, opacity: 0.3 }} />
+                      <Typography color="text.secondary" fontWeight="900">ALL SYSTEMS OPTIMAL</Typography>
+                      <Typography variant="caption" color="text.muted">Cohort proficiency exceeds baseline requirements.</Typography>
                     </Box>
                   )}
                 </Stack>
@@ -287,131 +281,143 @@ const TeacherDashboard: React.FC = () => {
 
           {/* Upcoming Class Schedule */}
           <Grid item xs={12} md={4} className="dashboard-entry-3">
-            <Card className="glass-card" sx={{ height: 450 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
-                  <Event color="primary" /> Class Timeline
-                </Typography>
-                <Box sx={{ position: 'relative', pl: 3, borderLeft: '2px dashed rgba(255,255,255,0.1)' }}>
-                  {upcomingClasses.map((cl, idx) => (
-                    <Box key={idx} sx={{ mb: 4, position: 'relative' }}>
-                      <Box sx={{ 
-                        position: 'absolute', left: '-31px', top: 0, 
-                        width: 14, height: 14, borderRadius: '50%', 
-                        bgcolor: cl.status === 'Next' ? '#ff4da6' : 'rgba(255,255,255,0.2)',
-                        boxShadow: cl.status === 'Next' ? '0 0 10px #ff4da6' : 'none'
-                      }} className={cl.status === 'Next' ? 'led-pulse' : ''} />
-                      <Typography variant="caption" sx={{ color: cl.status === 'Next' ? '#ff4da6' : 'text.secondary', fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-                        {cl.time} {cl.status === 'Next' && '• COMING UP'}
-                      </Typography>
-                      <Box sx={{ 
-                        p: 2, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 2.5, 
-                        background: cl.status === 'Next' ? 'rgba(255,255,255,0.03)' : 'transparent' 
-                      }}>
-                        <Typography variant="body2" fontWeight="bold">{cl.subject}</Typography>
-                        <Typography variant="caption" color="text.secondary">Target: {cl.class}</Typography>
-                      </Box>
+            <Card className="glass-card" sx={{ height: 500, p: 4 }}>
+              <Typography variant="h6" fontWeight="999" mb={5} display="flex" alignItems="center" gap={2} sx={{ letterSpacing: 1 }}>
+                <Event sx={{ color: 'var(--primary)' }} /> CLASS TIMELINE
+              </Typography>
+              <Box sx={{ position: 'relative', pl: 4, borderLeft: '2px solid rgba(255,255,255,0.03)' }}>
+                {upcomingClasses.map((cl, idx) => (
+                  <Box key={idx} sx={{ mb: 6, position: 'relative' }}>
+                    <Box sx={{ 
+                      position: 'absolute', left: '-41px', top: 0, 
+                      width: 18, height: 18, borderRadius: '50%', 
+                      bgcolor: cl.status === 'Next' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                      boxShadow: cl.status === 'Next' ? '0 0 20px var(--primary)' : 'none',
+                      border: '4px solid var(--bg-obsidian)',
+                      zIndex: 1
+                    }} />
+                    <Typography variant="caption" sx={{ color: cl.status === 'Next' ? 'var(--primary)' : 'text.secondary', fontWeight: '999', display: 'block', mb: 1, letterSpacing: 1 }}>
+                      {cl.time} {cl.status === 'Next' && '• IMMINENT'}
+                    </Typography>
+                    <Box sx={{ 
+                      p: 3, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, 
+                      background: cl.status === 'Next' ? 'rgba(124, 58, 237, 0.05)' : 'rgba(255,255,255,0.01)' 
+                    }}>
+                      <Typography variant="subtitle1" fontWeight="999" sx={{ color: '#fff' }}>{cl.subject}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>TARGET SECTOR: {cl.class}</Typography>
                     </Box>
-                  ))}
-                </Box>
-              </CardContent>
+                  </Box>
+                ))}
+              </Box>
             </Card>
           </Grid>
 
           {/* Cohort Progress Area Chart */}
           <Grid item xs={12} md={8} className="dashboard-entry-3">
-            <Card className="glass-card" sx={{ height: 450 }}>
-              <CardContent sx={{ height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" mb={3}>
-                  Cohort Resilience Velocity
-                </Typography>
-                <ResponsiveContainer width="100%" height="80%">
-                  <AreaChart data={performanceTrend}>
-                    <defs>
-                      <linearGradient id="teacherColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f72585" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#f72585" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="month" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <YAxis stroke="rgba(255,255,255,0.5)" fontSize={12} domain={[0, 100]} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0d1228', border: '1px solid rgba(247, 37, 133, 0.3)', borderRadius: 12 }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="avgScore" 
-                      name="Readiness"
-                      stroke="#f72585" 
-                      fillOpacity={1} 
-                      fill="url(#teacherColor)" 
-                      strokeWidth={3}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
+            <Card className="glass-card" sx={{ height: 500, p: 4 }}>
+              <Typography variant="h6" fontWeight="999" mb={4} sx={{ letterSpacing: 1 }}>
+                COHORT RESILIENCE VELOCITY
+              </Typography>
+              <ResponsiveContainer width="100%" height="80%">
+                <AreaChart data={performanceTrend}>
+                  <defs>
+                    <linearGradient id="teacherColorV2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--secondary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--secondary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
+                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" fontSize={11} fontWeight="bold" />
+                  <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} fontWeight="bold" domain={[0, 100]} />
+                  <ReTooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-obsidian)', border: '1px solid var(--glass-border)', borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="avgScore" 
+                    name="Readiness Velocity"
+                    stroke="var(--secondary)" 
+                    fillOpacity={1} 
+                    fill="url(#teacherColorV2)" 
+                    strokeWidth={4}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </Card>
           </Grid>
 
           {/* Academic Resources Hub */}
           <Grid item xs={12} className="dashboard-entry-3">
-            <Card className="glass-card neon-border-purple">
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-                  <Box>
-                    <Typography variant="h5" fontWeight="900" display="flex" alignItems="center" gap={1}>
-                      <LocalLibrary color="primary" /> Knowledge Repository
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">Distributed assets and synthesis materials for core domains</Typography>
-                  </Box>
-                  <Button variant="contained" startIcon={<Add />} onClick={() => window.location.href = '/teacher/core-subjects'} sx={{ bgcolor: '#6c63ff', borderRadius: 2 }}>
-                    Sync New Asset
-                  </Button>
+            <Card className="glass-card holographic-glow" sx={{ p: 4 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={6}>
+                <Box>
+                  <Typography variant="h4" fontWeight="999" display="flex" alignItems="center" gap={2} className="text-gradient">
+                    <LocalLibrary sx={{ fontSize: 32, color: 'var(--primary)' }} /> KNOWLEDGE VAULT
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>Distributed assets and synthesis materials for core domains</Typography>
                 </Box>
-                
-                {loading ? (
-                  <Box textAlign="center" py={5}>
-                    <SkeletonDashboard type="teacher" />
-                  </Box>
-                ) : notes.length === 0 ? (
-                  <Box textAlign="center" py={8} sx={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 4 }}>
-                    <PictureAsPdf sx={{ fontSize: 60, mb: 2, opacity: 0.1 }} />
-                    <Typography color="text.secondary">The knowledge vault is currently empty.</Typography>
-                  </Box>
-                ) : (
-                  <Grid container spacing={3}>
-                    {notes.slice(0, 4).map((note) => (
-                      <Grid item xs={12} sm={6} md={3} key={note._id}>
-                        <Box sx={{ 
-                          p: 3, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
-                          position: 'relative', overflow: 'hidden', height: '100%',
-                          transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(108, 99, 255, 0.3)' }
-                        }}>
-                          <PictureAsPdf sx={{ position: 'absolute', top: -10, right: -10, fontSize: 80, opacity: 0.05, color: '#f72585' }} />
-                          <Chip label={note.subject} size="small" sx={{ mb: 2, bgcolor: 'rgba(108, 99, 255, 0.1)', color: '#6c63ff', fontWeight: 'bold' }} />
-                          <Typography variant="body1" fontWeight="bold" gutterBottom noWrap>{note.title}</Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, height: 40, overflow: 'hidden' }}>
-                            {note.description}
-                          </Typography>
-                          <Divider sx={{ my: 2, opacity: 0.05 }} />
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Typography variant="caption" color="text.secondary">{formatFileSize(note.fileSize)}</Typography>
-                            <Box>
-                              <IconButton size="small" onClick={() => handleDownload(note._id, note.fileName)} color="primary"><Download /></IconButton>
-                              <IconButton size="small" onClick={() => window.location.href = '/teacher/core-subjects'}><Visibility /></IconButton>
-                            </Box>
+                <Button 
+                  variant="contained" 
+                  startIcon={<Add />} 
+                  onClick={() => window.location.href = '/teacher/core-subjects'} 
+                  sx={{ 
+                    bgcolor: 'var(--primary)', 
+                    borderRadius: 3, 
+                    fontWeight: 999, 
+                    px: 4, py: 1.5,
+                    boxShadow: 'var(--glow-violet)'
+                  }}
+                >
+                  SYNC NEW ASSET
+                </Button>
+              </Box>
+              
+              {loading ? (
+                <Box textAlign="center" py={10}>
+                  <CircularProgress color="primary" />
+                </Box>
+              ) : notes.length === 0 ? (
+                <Box textAlign="center" py={15} sx={{ border: '2px dashed rgba(255,255,255,0.03)', borderRadius: 6 }}>
+                  <PictureAsPdf sx={{ fontSize: 80, mb: 3, opacity: 0.1, color: 'var(--secondary)' }} />
+                  <Typography color="text.secondary" fontWeight="900" sx={{ letterSpacing: 1 }}>THE VAULT IS CURRENTLY SEALED</Typography>
+                  <Typography variant="caption" color="text.muted">No departmental assets detected in the current cycle.</Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={4}>
+                  {notes.slice(0, 4).map((note) => (
+                    <Grid item xs={12} sm={6} md={3} key={note._id}>
+                      <Box className="glass-card" sx={{ 
+                        p: 4, borderRadius: 5, bgcolor: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)',
+                        position: 'relative', overflow: 'hidden', height: '100%',
+                        transition: 'var(--transition-smooth)', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)', borderColor: 'var(--primary)', transform: 'translateY(-5px)' }
+                      }}>
+                        <PictureAsPdf sx={{ position: 'absolute', top: -15, right: -15, fontSize: 100, opacity: 0.03, color: 'var(--secondary)' }} />
+                        <Chip label={note.subject} size="small" sx={{ mb: 3, bgcolor: 'rgba(124, 58, 237, 0.1)', color: 'var(--primary)', fontWeight: '999', letterSpacing: 1 }} />
+                        <Typography variant="h6" fontWeight="999" gutterBottom sx={{ color: '#fff' }}>{note.title}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 4, height: 44, overflow: 'hidden', fontWeight: 500 }}>
+                          {note.description}
+                        </Typography>
+                        <Divider sx={{ my: 3, opacity: 0.05 }} />
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>{formatFileSize(note.fileSize)}</Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <IconButton size="small" onClick={() => handleDownload(note._id, note.fileName)} sx={{ color: 'var(--primary)', bgcolor: 'rgba(124, 58, 237, 0.05)' }}><Download fontSize="small" /></IconButton>
+                            <IconButton size="small" onClick={() => window.location.href = '/teacher/core-subjects'} sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}><Visibility fontSize="small" /></IconButton>
                           </Box>
                         </Box>
-                      </Grid>
-                    ))}
-                  </Grid>
-                )}
-              </CardContent>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
             </Card>
           </Grid>
+          
+          <Grid item xs={12} className="dashboard-entry-3">
+             <Leaderboard limit={8} initialDepartment={user?.profile?.department} lockDepartment={true} />
+          </Grid>
         </Grid>
-      </Container>
+      </Box>
     </TeacherLayout>
   );
 };

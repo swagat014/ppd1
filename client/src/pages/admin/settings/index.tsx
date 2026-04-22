@@ -75,6 +75,8 @@ const SettingsPage: React.FC = () => {
     setSaving(true);
     try {
       await axios.put('/admin/settings', settings);
+      // Notify global SettingsContext to re-fetch (picked up by the event listener in SettingsContext)
+      window.dispatchEvent(new Event('settings-updated'));
       toast.success('System settings updated successfully');
     } catch (error) {
       console.error('Failed to update settings:', error);

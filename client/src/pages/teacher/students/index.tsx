@@ -513,6 +513,7 @@ const StudentsPage: React.FC = () => {
                   <Tab label="DSA Progress" />
                   <Tab label="Aptitude" />
                   <Tab label="Skills" />
+                  <Tab label="Academic" />
                 </Tabs>
 
                 {activeTab === 0 && (
@@ -671,6 +672,43 @@ const StudentsPage: React.FC = () => {
                       Skills data will be displayed here based on student performance across
                       different modules.
                     </Typography>
+                  </Box>
+                )}
+
+                {activeTab === 4 && (
+                  <Box>
+                    <Typography variant="h6" gutterBottom>
+                      Academic Records
+                    </Typography>
+                    {(selectedStudent as any).academicInfo ? (
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Grid container spacing={2}>
+                            {((selectedStudent as any).academicInfo.semesterRecords || []).map((record: any) => (
+                              <Grid item xs={6} sm={3} key={record.semester}>
+                                <Typography variant="body2" color="textSecondary">Semester {record.semester}</Typography>
+                                <Typography variant="h6" color="primary">
+                                  {record.sgpa ? record.sgpa.toFixed(2) : 'N/A'}
+                                </Typography>
+                              </Grid>
+                            ))}
+                          </Grid>
+                          <Divider sx={{ my: 2 }} />
+                          <Grid container spacing={2}>
+                            <Grid item xs={6} sm={4}>
+                              <Typography variant="body2" color="textSecondary">Current CGPA</Typography>
+                              <Typography variant="h5" fontWeight="bold" color="secondary">
+                                {(selectedStudent as any).academicInfo.cgpa ? (selectedStudent as any).academicInfo.cgpa.toFixed(2) : 'N/A'}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Typography color="text.secondary">
+                        No academic records uploaded yet.
+                      </Typography>
+                    )}
                   </Box>
                 )}
               </DialogContent>

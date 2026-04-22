@@ -21,16 +21,22 @@ import {
   getAnalytics,
   getRecommendedProjects,
   getRecommendedSkills,
+  getLeaderboard,
 } from '../controllers/student.controller';
 import { protect, authorize } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
-// All routes require authentication and student role
+// All routes require authentication
 router.use(protect);
+
+// Allow all authenticated users to view the leaderboard
+router.get('/leaderboard', getLeaderboard);
+
+// Restrict remaining routes to student role only
 router.use(authorize('student'));
 
-// Dashboard
+// Dashboard & Rankings
 router.get('/dashboard', getDashboard);
 
 // Resume

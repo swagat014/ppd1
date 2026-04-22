@@ -47,6 +47,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { SkeletonDashboard } from '../../components/common/SkeletonLoading';
+import Leaderboard from '../../components/common/Leaderboard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -412,79 +413,9 @@ const TpoDashboard: React.FC = () => {
             </Card>
           </Grid>
 
-          {/* DSA & Aptitude Management Preview */}
-          <Grid item xs={12}>
-            <Card className="glass-card">
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" mb={2}>
-                  Content Management
-                </Typography>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box p={2} bgcolor="grey.50" borderRadius={2}>
-                      <Box display="flex" alignItems="center" mb={2}>
-                        <Code color="primary" sx={{ mr: 1 }} />
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          DSA Problems
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" mb={2}>
-                        Manage coding problems for student practice. Add, edit, or remove problems with test cases.
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min((stats.totalProblems / 50) * 100, 100)}
-                        sx={{ mb: 1 }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {stats.totalProblems} problems created
-                      </Typography>
-                      <Box mt={2}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => navigate('/tpo/analytics')}
-                        >
-                          Manage Problems
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Box p={3} sx={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }} borderRadius={3}>
-                      <Box display="flex" alignItems="center" mb={2}>
-                        <Quiz color="secondary" sx={{ mr: 1 }} />
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          Aptitude Tests
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" mb={2}>
-                        Create and manage aptitude tests for different companies and difficulty levels.
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min((stats.totalTests / 20) * 100, 100)}
-                        sx={{ mb: 1 }}
-                        color="secondary"
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {stats.totalTests} tests created
-                      </Typography>
-                      <Box mt={2}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          onClick={() => navigate('/tpo/analytics')}
-                        >
-                          Manage Tests
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
+          {/* Global Elite Rankings (Leaderboard) */}
+          <Grid item xs={12} className="dashboard-entry-3">
+             <Leaderboard limit={10} showPagination={true} />
           </Grid>
         </Grid>
       </Container>

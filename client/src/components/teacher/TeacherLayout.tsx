@@ -99,14 +99,14 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
         background: 'rgba(255, 255, 255, 0.02)'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5 }}>
-          <School sx={{ fontSize: 28, color: '#f72585' }} />
+          <School sx={{ fontSize: 28, color: '#ec4899' }} />
           <Typography variant="h6" noWrap component="div" fontWeight="800" sx={{
-            background: 'linear-gradient(135deg, #f0f4ff 0%, #ff4da6 100%)',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #ec4899 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             letterSpacing: '1px'
           }}>
-            TEACHER HUB
+            ACADEMIC HUB
           </Typography>
         </Box>
       </Toolbar>
@@ -124,21 +124,21 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
                     transition: 'all 0.3s ease',
                     backdropFilter: 'blur(10px)',
                     ...(isActive ? {
-                      background: 'rgba(247, 37, 133, 0.15)',
-                      border: '1px solid rgba(247, 37, 133, 0.3)',
-                      boxShadow: '0 4px 15px rgba(247, 37, 133, 0.2)',
+                      background: 'rgba(236, 72, 153, 0.12)',
+                      border: '1px solid rgba(236, 72, 153, 0.25)',
+                      boxShadow: '0 4px 15px rgba(236, 72, 153, 0.1)',
                     } : {
                       background: 'transparent',
                       border: '1px solid transparent',
                       '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
                       }
                     })
                   }}
                 >
                   <ListItemIcon sx={{ 
-                    color: isActive ? '#f72585' : 'text.secondary', 
+                    color: isActive ? '#ec4899' : '#94a3b8', 
                     minWidth: 40,
                     transition: 'color 0.3s ease'
                   }}>
@@ -148,7 +148,7 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
                     primary={item.text} 
                     primaryTypographyProps={{ 
                       fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'text.primary' : 'text.secondary',
+                      color: isActive ? '#f8fafc' : '#94a3b8',
                       sx: { transition: 'color 0.3s ease' }
                     }} 
                   />

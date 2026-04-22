@@ -31,7 +31,7 @@ export const maintenanceMode = async (req: Request, res: Response, next: NextFun
       }
       
       // 2. Allow specific status check paths
-      const allowPaths = ['/api/auth/login', '/api/admin/settings'];
+      const allowPaths = ['/api/auth/login', '/api/admin/settings', '/api/public/settings', '/api/health'];
       if (allowPaths.some(path => req.path.includes(path))) {
         return next();
       }

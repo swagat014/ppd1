@@ -29,7 +29,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const fetchSettings = useCallback(async () => {
     try {
-      const response = await axios.get('/admin/settings');
+      const response = await axios.get('/public/settings');
       setSettings(response.data.data);
       if (response.data.data.siteName) {
         document.title = response.data.data.siteName;
@@ -43,6 +43,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     fetchSettings();
+  }, [fetchSettings]);
+
+  // Re-fetch when admin saves settings (triggered via window event)
+  useEffect(() => {
+    const handleSettingsUpdated = () => fetchSettings();
+    window.addEventListener('settings-updated', handleSettingsUpdated);
+    return () => window.removeEventListener('settings-updated', handleSettingsUpdated);
   }, [fetchSettings]);
 
   return (

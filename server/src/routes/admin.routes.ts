@@ -7,7 +7,7 @@ router.use(protect);
 router.use(authorize('admin'));
 
 // Import admin controller functions
-import { getAllUsers, getUserById, updateUser, deleteUser, bulkDeleteUsers, getDashboardStats, uploadUsers, createUser, getAllDepartments, createDepartment, updateDepartment, deleteDepartment, getPlacementStats, getSettings, updateSettings, getStudentAnalytics } from '../controllers/admin.controller';
+import { getAllUsers, getUserById, updateUser, deleteUser, bulkDeleteUsers, getDashboardStats, uploadUsers, createUser, getAllDepartments, createDepartment, updateDepartment, deleteDepartment, getPlacementStats, getSystemSettings, updateSystemSettings, getStudentAnalytics } from '../controllers/admin.controller';
 
 // Import TPO controller functions for content management
 import {
@@ -29,8 +29,8 @@ router.get('/analytics', getStudentAnalytics);
 
 // Settings routes
 router.route('/settings')
-  .get(getSettings)
-  .put(updateSettings);
+  .get(getSystemSettings)
+  .put(updateSystemSettings);
 
 // User management routes
 router.route('/users')
